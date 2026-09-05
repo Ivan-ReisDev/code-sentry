@@ -10,7 +10,7 @@ const SEVERITY_COLOR: Record<Severity, (text: string) => string> = {
   critical: (text) => chalk.bgRed.white(text),
 };
 
-export function printConsoleReport(result: ScanResult): void {
+export const printConsoleReport = (result: ScanResult): void => {
   if (result.findings.length === 0) {
     console.log(chalk.green(`Nenhum problema encontrado (${result.scannedFiles} arquivos analisados).`));
     return;
@@ -37,4 +37,4 @@ export function printConsoleReport(result: ScanResult): void {
       `\n${result.findings.length} problema(s) encontrado(s) em ${result.scannedFiles} arquivo(s) (${result.durationMs}ms).`,
     ),
   );
-}
+};

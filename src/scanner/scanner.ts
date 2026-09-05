@@ -3,7 +3,7 @@ import type { Rule, RuleFinding } from '../rules/rule.interface.js';
 import { findFiles } from './file-finder.js';
 import type { ScanResult } from './scan-result.js';
 
-export async function runScan(targetDir: string, rules: Rule[]): Promise<ScanResult> {
+export const runScan = async (targetDir: string, rules: Rule[]): Promise<ScanResult> => {
   const startedAt = Date.now();
   const files = await findFiles(targetDir);
   const findings: RuleFinding[] = [];
@@ -20,4 +20,4 @@ export async function runScan(targetDir: string, rules: Rule[]): Promise<ScanRes
     findings,
     durationMs: Date.now() - startedAt,
   };
-}
+};
