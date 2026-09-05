@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
 import Table from 'cli-table3';
-import { allRules } from '../rules/index.js';
+import { allRules } from '../../rules/index.js';
 
-export function registerRulesCommand(program: Command): void {
+export const registerRulesCommand = (program: Command): void => {
   program
     .command('rules')
     .description('Lista as regras de análise disponíveis')
@@ -15,4 +15,4 @@ export function registerRulesCommand(program: Command): void {
 
       console.log(table.toString());
     });
-}
+};

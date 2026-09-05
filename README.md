@@ -41,6 +41,25 @@ Lista as regras de análise disponíveis.
 codesentry rules
 ```
 
+### `codesentry long-functions [path]`
+
+Analisa um diretório (padrão: diretório atual) em busca apenas de
+funções com mais de 30 linhas (severidade `low`). Essa mesma regra
+também roda automaticamente como parte do `codesentry scan`.
+
+```bash
+codesentry long-functions .
+codesentry long-functions ./src --json
+```
+
+### `codesentry help`
+
+Lista os comandos disponíveis.
+
+```bash
+codesentry help
+```
+
 ### `codesentry init`
 
 Assistente interativo para configurar o CodeSentry no projeto atual.

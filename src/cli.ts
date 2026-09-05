@@ -1,20 +1,22 @@
 import { Command } from 'commander';
 import figlet from 'figlet';
 import gradient from 'gradient-string';
-import { registerInitCommand } from './commands/init.command.js';
-import { registerRulesCommand } from './commands/rules.command.js';
-import { registerScanCommand } from './commands/scan.command.js';
+import { registerHelpCommand } from './commands/help/help.command.js';
+import { registerInitCommand } from './commands/init/init.command.js';
+import { registerLongFunctionsCommand } from './commands/long-functions/long-functions.command.js';
+import { registerRulesCommand } from './commands/rules/rules.command.js';
+import { registerScanCommand } from './commands/scan/scan.command.js';
 
-function printBanner(): void {
+const printBanner = (): void => {
   if (!process.stdout.isTTY) {
     return;
   }
 
   const banner = figlet.textSync('CodeSentry', { font: 'Standard' });
   console.log(gradient(['cyan', 'magenta'])(banner));
-}
+};
 
-export function createCli(): Command {
+export const createCli = (): Command => {
   printBanner();
 
   const program = new Command();
@@ -22,11 +24,14 @@ export function createCli(): Command {
   program
     .name('codesentry')
     .description('CLI de verificação de vulnerabilidades e qualidade de código')
-    .version('0.1.0');
+    .version('0.1.0')
+    .helpCommand(false);
 
   registerScanCommand(program);
   registerInitCommand(program);
   registerRulesCommand(program);
+  registerLongFunctionsCommand(program);
+  registerHelpCommand(program);
 
   return program;
-}
+};
