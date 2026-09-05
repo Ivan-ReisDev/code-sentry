@@ -1,7 +1,9 @@
 import { Command } from 'commander';
 import figlet from 'figlet';
 import gradient from 'gradient-string';
+import { registerDeepNestingCommand } from './commands/deep-nesting/deep-nesting.command.js';
 import { registerHelpCommand } from './commands/help/help.command.js';
+import { registerHighComplexityCommand } from './commands/high-complexity/high-complexity.command.js';
 import { registerInitCommand } from './commands/init/init.command.js';
 import { registerLongFunctionsCommand } from './commands/long-functions/long-functions.command.js';
 import { registerRulesCommand } from './commands/rules/rules.command.js';
@@ -31,6 +33,8 @@ export const createCli = (): Command => {
   registerInitCommand(program);
   registerRulesCommand(program);
   registerLongFunctionsCommand(program);
+  registerDeepNestingCommand(program);
+  registerHighComplexityCommand(program);
   registerHelpCommand(program);
 
   return program;
