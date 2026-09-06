@@ -1,6 +1,6 @@
 {
       "name": "codesentry-semgrep-rules",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "private": true,
       "license": "MIT",
       "description": "Snapshot local das regras OWASP do Semgrep para CodeSentry",

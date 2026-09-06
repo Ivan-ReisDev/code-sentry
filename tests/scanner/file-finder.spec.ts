@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -39,4 +39,22 @@ it('ignores dependency, VCS and build-output folders for .tsx/.jsx files', async
 
       expect(files).toHaveLength(1);
       expect(files[0]).toContain('App.tsx');
+});
+
+it('never reads inside an ignored directory, so unreadable content there cannot fail the scan', async () => {
+      await mkdir(join(dir, 'node_modules'), { recursive: true });
+      await writeFile(join(dir, 'node_modules', 'lib.tsx'), 'export const z = 1;');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+      // Removing read+execute from node_modules makes readdir() on it throw EACCES.
+      // findFiles must never attempt that call in the first place, mirroring how a
+      // broken/too-long path inside node_modules on Windows should not fail the scan.
+      await chmod(join(dir, 'node_modules'), 0o000);
+
+      try {
+            const files = await findFiles(dir);
+            expect(files).toHaveLength(1);
+            expect(files[0]).toContain('App.tsx');
+      } finally {
+            await chmod(join(dir, 'node_modules'), 0o755);
+      }
 });
