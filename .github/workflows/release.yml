@@ -95,7 +95,11 @@ jobs:
                           echo "PYTHON_ROOT=$PYTHON_ROOT"
                           echo "EXE_RELATIVE=$EXE_RELATIVE"
                           mkdir -p "${{ matrix.package }}/runtime"
-                          cp -a "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
+                          # -L: a raiz retornada por "uv python dir"/"uv python find" pode ser, ela
+                          # mesma, um symlink para o cache interno do uv. Sem dereferenciar, "cp -a"
+                          # copia o link em vez do conteúdo, e o npm descarta esse link silenciosamente
+                          # ao empacotar — o pacote publicado fica com o runtime vazio.
+                          cp -aL "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
                           COPIED_PYTHON="${{ matrix.package }}/runtime/python/$EXE_RELATIVE"
                           echo "COPIED_PYTHON=$COPIED_PYTHON"
                           if [ ! -x "$COPIED_PYTHON" ]; then
