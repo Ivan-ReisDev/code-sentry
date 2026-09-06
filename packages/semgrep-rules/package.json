@@ -2,10 +2,12 @@
       "name": "codesentry-semgrep-rules",
       "version": "0.1.0",
       "private": true,
+      "license": "MIT",
       "description": "Snapshot local das regras OWASP do Semgrep para CodeSentry",
       "files": [
             "rules",
-            "THIRD_PARTY_NOTICES.md"
+            "THIRD_PARTY_NOTICES.md",
+            "LICENSE"
       ],
       "exports": {
             "./rules/owasp.yml": "./rules/owasp.yml"

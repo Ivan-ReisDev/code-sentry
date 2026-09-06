@@ -2,6 +2,7 @@
       "name": "codesentry-semgrep-win32-x64",
       "version": "0.1.0",
       "private": true,
+      "license": "MIT",
       "description": "Runtime Semgrep CE embutido do CodeSentry para Windows x64",
       "os": [
             "win32"
@@ -13,7 +14,8 @@
             "runtime",
             "runtime.json",
             "runtime.lock.json",
-            "THIRD_PARTY_NOTICES.md"
+            "THIRD_PARTY_NOTICES.md",
+            "LICENSE"
       ],
       "exports": {
             "./runtime.json": "./runtime.json"

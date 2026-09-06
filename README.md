@@ -4,6 +4,42 @@ CLI de verificação de vulnerabilidades e qualidade de código. O scanner
 combina regras próprias para JavaScript/TypeScript e o ruleset OWASP do
 Semgrep CE para as linguagens suportadas por ele.
 
+## O que o CodeSentry faz
+
+Rodando `codesentry scan` num projeto, dois motores de análise trabalham
+juntos e o resultado sai unificado em um único relatório:
+
+- **Motor nativo** — regras próprias em TypeScript, sem dependências
+  externas, cobrindo JS/TS/JSX/TSX: segredos hardcoded, SQL injection,
+  XSS, command injection, JWT mal configurado, CORS permissivo, hash/
+  cifra fracos, promises sem tratamento de erro, complexidade excessiva
+  (funções longas, aninhamento profundo, muitos `if`/`for`/`try`), entre
+  outras. A lista completa e sempre atualizada está em `codesentry rules`.
+- **Semgrep CE embutido** — roda o ruleset `p/owasp-top-ten` sobre todas
+  as linguagens que o Semgrep suporta (não só JS/TS), cobrindo os riscos
+  do OWASP Top 10 de forma mais ampla que regras hand-rolled sozinhas
+  conseguiriam.
+
+Cada achado no relatório mostra o arquivo, a linha, a severidade e qual
+motor encontrou o problema (prefixo `semgrep/` para achados do Semgrep).
+Saídas disponíveis: tabela no console, JSON (`--json`) e, quando há mais
+de 20 problemas, um relatório Markdown detalhado é gerado automaticamente.
+
+## Como funciona por baixo dos panos
+
+O ponto central do design é **zero fricção de instalação**: o usuário final
+roda `npm install -g codesentry` e não precisa instalar Python, Docker,
+Semgrep, nem criar conta em lugar nenhum.
+
+Isso é possível porque o Semgrep CE e um Python portátil vêm empacotados
+como **dependências opcionais** específicas da plataforma
+(`codesentry-semgrep-linux-x64` / `-win32-x64`), resolvidas
+automaticamente pelo npm na instalação. O ruleset OWASP também é
+distribuído como pacote próprio (`codesentry-semgrep-rules`), como um
+snapshot local fixado por versão — o scan nunca consulta a Semgrep
+Registry nem envia métricas, e funciona 100% offline depois de instalado.
+O racional completo está na [ADR 0004](docs/adr/0004-bundled-semgrep-runtime.md).
+
 ## Instalação
 
 Em uma release publicada, basta uma instalação:
@@ -22,8 +58,8 @@ para o scan funcionar offline após a instalação. Durante o desenvolvimento,
 use `npm link`:
 
 ```bash
-git clone <url-do-repositorio>
-cd CodeSentry
+git clone git@github.com:Ivan-ReisDev/code-sentry.git
+cd code-sentry
 npm install
 npm run build
 npm link
@@ -119,3 +155,7 @@ Para entender a estrutura de pastas e o fluxo de dados
 [docs/architecture.md](docs/architecture.md). Para o racional por trás
 das bibliotecas usadas na CLI, veja
 [docs/adr/0001-cli-libs.md](docs/adr/0001-cli-libs.md).
+
+## Licença
+
+[MIT](LICENSE)

@@ -7,12 +7,22 @@
   ],
   "type": "module",
   "description": "CLI de verificação de vulnerabilidades e qualidade de código",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ivan-ReisDev/code-sentry.git"
+  },
+  "homepage": "https://github.com/Ivan-ReisDev/code-sentry#readme",
+  "bugs": {
+    "url": "https://github.com/Ivan-ReisDev/code-sentry/issues"
+  },
   "bin": {
     "codesentry": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=22.12.0"
