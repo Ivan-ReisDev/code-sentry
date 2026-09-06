@@ -82,6 +82,13 @@ jobs:
                           uv python install "$PYTHON_VERSION"
                           PYTHON_BIN="$(uv python find "$PYTHON_VERSION")"
                           PYTHON_DIR="$(uv python dir)"
+                          # No Git Bash do runner Windows, "uv" é um binário nativo e devolve
+                          # caminhos com barra invertida (C:\...); normalizamos para o formato
+                          # POSIX antes de qualquer manipulação de string baseada em "/".
+                          if command -v cygpath >/dev/null 2>&1; then
+                                PYTHON_BIN="$(cygpath -u "$PYTHON_BIN")"
+                                PYTHON_DIR="$(cygpath -u "$PYTHON_DIR")"
+                          fi
                           echo "PYTHON_BIN=$PYTHON_BIN"
                           echo "PYTHON_DIR=$PYTHON_DIR"
                           # A instalação do uv aninha o executável em profundidades diferentes por
@@ -108,7 +115,7 @@ jobs:
                                 exit 1
                           fi
                           "$COPIED_PYTHON" -m pip install --no-cache-dir --break-system-packages "semgrep==$SEMGREP_VERSION"
-                          SEMGREP_PATH="$(find "${{ matrix.package }}/runtime/python" -iname "${{ matrix.semgrep_binary }}" | head -n1)"
+                          SEMGREP_PATH="$(find "${{ matrix.package }}/runtime/python" -iname "${{ matrix.semgrep_binary }}" -type f | head -n1)"
                           if [ -z "$SEMGREP_PATH" ]; then
                                 echo "Não foi possível localizar o executável semgrep instalado." >&2
                                 find "${{ matrix.package }}/runtime/python" -maxdepth 5 -iname "semgrep*" >&2
