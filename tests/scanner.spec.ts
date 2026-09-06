@@ -47,4 +47,18 @@ describe('runScan', () => {
     expect(result.scannedFiles).toBe(2);
     expect(result.findings).toHaveLength(0);
   });
+
+  it('produces the same result with a custom (serialized) concurrency', async () => {
+    const result = await runScan(dir, [fakeRule], 1);
+
+    expect(result.scannedFiles).toBe(2);
+    expect(result.findings).toHaveLength(2);
+  });
+
+  it('uses a sensible default concurrency when none is provided', async () => {
+    const result = await runScan(dir, [fakeRule]);
+
+    expect(result.scannedFiles).toBe(2);
+    expect(result.findings).toHaveLength(2);
+  });
 });

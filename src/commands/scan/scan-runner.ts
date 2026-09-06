@@ -1,9 +1,14 @@
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import chalk from 'chalk';
 import { Listr } from 'listr2';
 import { printConsoleReport } from '../../reporters/console.reporter.js';
 import { toJsonReport } from '../../reporters/json.reporter.js';
+import { toMarkdownReport } from '../../reporters/markdown.reporter.js';
 import type { Rule } from '../../rules/rule.interface.js';
 import type { ScanResult } from '../../scanner/scan-result.js';
 import { runScan } from '../../scanner/scanner.js';
+import { generateMarkdownReportFilename, MARKDOWN_REPORT_FINDINGS_THRESHOLD } from './report-filename.js';
 
 export interface ScanOutputOptions {
   json?: boolean;
@@ -23,6 +28,20 @@ const printResult = (result: ScanResult, options: ScanOutputOptions): void => {
     return;
   }
   printConsoleReport(result);
+};
+
+const writeMarkdownReportIfNeeded = async (result: ScanResult, targetDir: string): Promise<void> => {
+  if (result.findings.length <= MARKDOWN_REPORT_FINDINGS_THRESHOLD) {
+    return;
+  }
+
+  const filePath = join(targetDir, generateMarkdownReportFilename());
+  try {
+    await writeFile(filePath, toMarkdownReport(result), 'utf-8');
+    console.log(chalk.cyan(`\nRelatório detalhado gerado em: ${filePath}`));
+  } catch (error) {
+    console.error(chalk.red(`Não foi possível gerar o relatório Markdown: ${errorMessage(error)}`));
+  }
 };
 
 export const scanAndReport = async (
@@ -50,6 +69,7 @@ export const scanAndReport = async (
     await tasks.run();
     if (result) {
       printResult(result, options);
+      await writeMarkdownReportIfNeeded(result, path);
     }
   } catch (error) {
     reportScanFailure(error);

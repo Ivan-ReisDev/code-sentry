@@ -13,6 +13,7 @@ Estrutura inicial de pastas do projeto e a responsabilidade de cada uma.
 │   │
 │   ├── scanner/
 │   │   ├── scanner.ts
+│   │   ├── run-with-concurrency-limit.ts
 │   │   ├── file-finder.ts
 │   │   └── scan-result.ts
 │   │
@@ -24,7 +25,8 @@ Estrutura inicial de pastas do projeto e a responsabilidade de cada uma.
 │   │
 │   ├── reporters/
 │   │   ├── console.reporter.ts
-│   │   └── json.reporter.ts
+│   │   ├── json.reporter.ts
+│   │   └── markdown.reporter.ts
 │   │
 │   ├── config/
 │   │   └── config.ts
@@ -70,3 +72,9 @@ Estrutura inicial de pastas do projeto e a responsabilidade de cada uma.
   adicionar novas regras sem alterar o `scanner`.
 - Cada reporter é independente do `scanner` — ele só recebe um
   `scan-result.ts` já pronto e decide como exibi-lo.
+- O `scanner` processa os arquivos com concorrência limitada (via
+  `run-with-concurrency-limit.ts`, usando `p-limit`) para evitar picos
+  de memória em projetos muito grandes — ver `docs/adr/0003-concurrency-limit.md`.
+- Quando o resultado tem mais de 20 problemas, `scan-runner.ts` gera
+  automaticamente um relatório em Markdown (`markdown.reporter.ts`) na
+  raiz do diretório analisado, além da saída no console/JSON.

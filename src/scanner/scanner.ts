@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import type { Rule, RuleFinding } from '../rules/rule.interface.js';
 import { findFiles } from './file-finder.js';
+import { runWithConcurrencyLimit } from './run-with-concurrency-limit.js';
 import type { ScanResult } from './scan-result.js';
+
+export const DEFAULT_SCAN_CONCURRENCY = 10;
 
 const scanFile = async (filePath: string, rules: Rule[]): Promise<RuleFinding[]> => {
   try {
@@ -12,11 +15,17 @@ const scanFile = async (filePath: string, rules: Rule[]): Promise<RuleFinding[]>
   }
 };
 
-export const runScan = async (targetDir: string, rules: Rule[]): Promise<ScanResult> => {
+export const runScan = async (
+  targetDir: string,
+  rules: Rule[],
+  concurrency: number = DEFAULT_SCAN_CONCURRENCY,
+): Promise<ScanResult> => {
   try {
     const startedAt = Date.now();
     const files = await findFiles(targetDir);
-    const findings = (await Promise.all(files.map((filePath) => scanFile(filePath, rules)))).flat();
+    const findings = (
+      await runWithConcurrencyLimit(files, concurrency, (filePath) => scanFile(filePath, rules))
+    ).flat();
 
     return {
       scannedFiles: files.length,
