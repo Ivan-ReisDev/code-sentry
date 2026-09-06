@@ -102,11 +102,14 @@ jobs:
                           echo "PYTHON_ROOT=$PYTHON_ROOT"
                           echo "EXE_RELATIVE=$EXE_RELATIVE"
                           mkdir -p "${{ matrix.package }}/runtime"
-                          # -L: a raiz retornada por "uv python dir"/"uv python find" pode ser, ela
-                          # mesma, um symlink para o cache interno do uv. Sem dereferenciar, "cp -a"
-                          # copia o link em vez do conteúdo, e o npm descarta esse link silenciosamente
-                          # ao empacotar — o pacote publicado fica com o runtime vazio.
-                          cp -aL "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
+                          # "cp -r" (sem -a) já dereferencia symlinks por padrão e NÃO preserva
+                          # hard links — ambos importam aqui: a raiz retornada por "uv python
+                          # dir"/"find" pode ser, ela mesma, um symlink para o cache interno do uv
+                          # (cp -a copiaria o link, e o npm descarta esse link ao empacotar); e a
+                          # instalação do Python usa hard links entre executáveis (python3.12,
+                          # python3, etc. no mesmo inode), que o registro do npm rejeita ("Hard
+                          # link is not allowed") — cp -r os transforma em arquivos independentes.
+                          cp -rL "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
                           COPIED_PYTHON="${{ matrix.package }}/runtime/python/$EXE_RELATIVE"
                           echo "COPIED_PYTHON=$COPIED_PYTHON"
                           if [ ! -x "$COPIED_PYTHON" ]; then
