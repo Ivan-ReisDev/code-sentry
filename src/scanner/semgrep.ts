@@ -80,7 +80,9 @@ export const runBundledSemgrep = async (
             'dist',
             '--exclude',
             '.next',
-            targetDir,
+            // Não repetir targetDir aqui: o processo já roda com cwd = targetDir
+            // (abaixo), então o alvo relativo a esse cwd é o diretório atual.
+            '.',
       ];
       let stdout: string;
       // O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
