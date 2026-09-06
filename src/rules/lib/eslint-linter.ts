@@ -23,20 +23,34 @@ export interface EslintFinding {
 // de nenhuma resolução baseada em cwd.
 const require = createRequire(import.meta.url);
 const SYNTAX_TYPESCRIPT_PLUGIN_PATH = require.resolve('@babel/plugin-syntax-typescript');
+const SYNTAX_JSX_PLUGIN_PATH = require.resolve('@babel/plugin-syntax-jsx');
+
+const isJsxFile = (filePath: string): boolean => /\.(tsx|jsx)$/.test(filePath);
+
+// O ESLint 9+ só reconhece nativamente .js/.mjs/.cjs como "linguagem JS" sem
+// configuração extra — .ts/.jsx/.tsx exigem que `files` liste a extensão
+// explicitamente, senão o `Linter#verify` devolve silenciosamente
+// "No matching configuration found" (sem lançar erro) e nenhuma regra roda.
+const SCANNABLE_FILE_GLOBS = ['**/*.js', '**/*.mjs', '**/*.cjs', '**/*.ts', '**/*.jsx', '**/*.tsx'];
 
 const createConfig = (
+  filePath: string,
   rules: Record<string, 'error' | 'warn'>,
   plugins: Record<string, unknown>,
 ): Linter.Config[] => [
   {
-    files: ['**/*'],
+    files: SCANNABLE_FILE_GLOBS,
     languageOptions: {
       parser: babelParser,
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: {
         requireConfigFile: false,
-        babelOptions: { plugins: [SYNTAX_TYPESCRIPT_PLUGIN_PATH] },
+        babelOptions: {
+          plugins: isJsxFile(filePath)
+            ? [SYNTAX_JSX_PLUGIN_PATH, SYNTAX_TYPESCRIPT_PLUGIN_PATH]
+            : [SYNTAX_TYPESCRIPT_PLUGIN_PATH],
+        },
       },
     },
     plugins,
@@ -76,9 +90,12 @@ export const runEslintRules = (
   // O flat config do ESLint não casa `files: ['**/*']` contra caminhos
   // absolutos de verdade, e por segurança usamos só o basename real (nunca um
   // nome fixo compartilhado) para não arriscar colisão de cache com libs de
-  // parsing que possam indexar por nome de arquivo — a extensão em si é
-  // irrelevante, pois o parser/plugins são sempre forçados abaixo.
+  // parsing que possam indexar por nome de arquivo. A extensão é preservada
+  // (não trocada por um nome genérico) porque createConfig usa isJsxFile()
+  // para decidir se habilita a sintaxe JSX.
   const syntheticFilename = basename(filePath) || 'source.js';
 
-  return toFindings(verify(content, createConfig(rules, plugins), syntheticFilename));
+  return toFindings(
+    verify(content, createConfig(syntheticFilename, rules, plugins), syntheticFilename),
+  );
 };

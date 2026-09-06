@@ -15,11 +15,15 @@ export interface SourceNode {
 
 export type SourceVisitor = (node: SourceNode, parent?: SourceNode) => void;
 
+const isJsxFile = (filePath: string): boolean => /\.(tsx|jsx)$/.test(filePath);
+
 export const parseSourceFile = (filePath: string, content: string): SourceNode => {
   return parse(content, {
     sourceFilename: filePath,
     sourceType: 'unambiguous',
-    plugins: ['typescript', 'decorators-legacy'],
+    plugins: isJsxFile(filePath)
+      ? ['jsx', 'typescript', 'decorators-legacy']
+      : ['typescript', 'decorators-legacy'],
     errorRecovery: true,
   }) as unknown as SourceNode;
 };

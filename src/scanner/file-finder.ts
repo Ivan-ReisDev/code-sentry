@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 
-const SCANNABLE_EXTENSIONS = ['.js', '.ts'];
+const SCANNABLE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx'];
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist']);
 
 const isInsideIgnoredDir = (relativePath: string): boolean => {

@@ -2,6 +2,9 @@
   "name": "codesentry",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/semgrep-rules"
+  ],
   "type": "module",
   "description": "CLI de verificação de vulnerabilidades e qualidade de código",
   "bin": {
@@ -20,16 +23,19 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare:owasp-rules": "node scripts/prepare-owasp-rules.mjs"
   },
   "dependencies": {
     "@babel/core": "^8.0.1",
     "@babel/eslint-parser": "^8.0.1",
     "@babel/parser": "^7.29.8",
+    "@babel/plugin-syntax-jsx": "^8.0.1",
     "@babel/plugin-syntax-typescript": "^8.0.3",
     "@clack/prompts": "^1.7.0",
     "chalk": "^6.0.0",
     "cli-table3": "^0.6.5",
+    "codesentry-semgrep-rules": "0.1.0",
     "commander": "^15.0.0",
     "eslint": "^10.10.0",
     "eslint-plugin-no-unsanitized": "^4.1.5",
@@ -38,6 +44,10 @@
     "gradient-string": "^3.0.0",
     "listr2": "^11.1.0",
     "p-limit": "^7.3.2"
+  },
+  "optionalDependencies": {
+    "codesentry-semgrep-linux-x64": "0.1.0",
+    "codesentry-semgrep-win32-x64": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
