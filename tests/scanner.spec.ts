@@ -21,6 +21,17 @@ const fakeRule: Rule = {
   },
 };
 
+const throwOnBrokenContentRule: Rule = {
+  id: 'throw-on-broken',
+  description: 'Throws for files containing BROKEN, simulating a parser failure on one file',
+  check(_filePath: string, content: string): RuleFinding[] {
+    if (content.includes('BROKEN')) {
+      throw new SyntaxError('Unexpected token');
+    }
+    return [];
+  },
+};
+
 let dir: string;
 
 beforeEach(async () => {
@@ -59,4 +70,18 @@ it('uses a sensible default concurrency when none is provided', async () => {
 
   expect(result.scannedFiles).toBe(2);
   expect(result.findings).toHaveLength(2);
+});
+
+it('reports a finding instead of aborting the whole scan when a rule throws for one file', async () => {
+  await writeFile(join(dir, 'broken.ts'), 'BROKEN');
+
+  const result = await runScan(dir, [fakeRule, throwOnBrokenContentRule]);
+
+  expect(result.scannedFiles).toBe(3);
+  expect(result.findings.filter((f) => f.ruleId === 'fake-rule')).toHaveLength(3);
+
+  const parseErrors = result.findings.filter((f) => f.ruleId === 'parse-error');
+  expect(parseErrors).toHaveLength(1);
+  expect(parseErrors[0].file).toBe(join(dir, 'broken.ts'));
+  expect(parseErrors[0].severity).toBe('low');
 });

@@ -6,13 +6,42 @@ import type { ScanResult } from './scan-result.js';
 
 export const DEFAULT_SCAN_CONCURRENCY = 10;
 
-const scanFile = async (filePath: string, rules: Rule[]): Promise<RuleFinding[]> => {
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'erro desconhecido';
+
+const parseErrorFinding = (filePath: string, error: unknown): RuleFinding => ({
+  ruleId: 'parse-error',
+  message: `Não foi possível analisar este arquivo (erro de sintaxe): ${errorMessage(error)}`,
+  file: filePath,
+  line: 1,
+  severity: 'low',
+});
+
+const readFileContent = async (filePath: string): Promise<string> => {
   try {
-    const content = await readFile(filePath, 'utf-8');
-    return rules.flatMap((rule) => rule.check(filePath, content));
+    return await readFile(filePath, 'utf-8');
   } catch (error) {
-    throw new Error(`Não foi possível analisar o arquivo "${filePath}".`, { cause: error });
+    throw new Error(`Não foi possível ler o arquivo "${filePath}".`, { cause: error });
   }
+};
+
+const scanFile = async (filePath: string, rules: Rule[]): Promise<RuleFinding[]> => {
+  const content = await readFileContent(filePath);
+  const findings: RuleFinding[] = [];
+  let hasParseError = false;
+
+  for (const rule of rules) {
+    try {
+      findings.push(...rule.check(filePath, content));
+    } catch (error) {
+      if (!hasParseError) {
+        findings.push(parseErrorFinding(filePath, error));
+        hasParseError = true;
+      }
+    }
+  }
+
+  return findings;
 };
 
 export const runScan = async (
