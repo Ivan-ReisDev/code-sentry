@@ -3,6 +3,11 @@ import type { Rule, RuleFinding } from './rule.interface.js';
 
 const SECRET_NAME_PATTERN = /password|senha|secret|token|apikey|api_key|private_key|access_key/i;
 
+// Nomes que indicam metadado público associado a um token/segredo (o
+// emissor, o escopo, o tempo de vida), não o material de assinatura em si —
+// ex.: PARTNER_TOKEN_ISSUER, PARTNER_TOKEN_SCOPE, PARTNER_TOKEN_TTL.
+const PUBLIC_METADATA_NAME_PATTERN = /scope|issuer|ttl|expir/i;
+
 const isNonEmptyStringLiteral = (node: SourceNode | undefined): boolean => {
   return node?.type === 'StringLiteral' && (node.value as string).trim().length > 0;
 };
@@ -43,7 +48,12 @@ const assignmentNodes = (node: SourceNode): AssignmentNodes => {
 const isHardcodedSecretAssignment = (node: SourceNode): boolean => {
   const { nameNode, valueNode } = assignmentNodes(node);
   const name = nameFromKeyLike(nameNode);
-  return !!name && SECRET_NAME_PATTERN.test(name) && isNonEmptyStringLiteral(valueNode);
+  return (
+    !!name &&
+    SECRET_NAME_PATTERN.test(name) &&
+    !PUBLIC_METADATA_NAME_PATTERN.test(name) &&
+    isNonEmptyStringLiteral(valueNode)
+  );
 };
 
 const findHardcodedSecretLines = (filePath: string, content: string): number[] => {

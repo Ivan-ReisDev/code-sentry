@@ -42,3 +42,39 @@ it('does not flag a variable whose name is not secret-like', () => {
 
   expect(findings).toHaveLength(0);
 });
+
+it('does not flag a public token issuer name (metadata, not signing material)', () => {
+  const findings = noHardcodedSecretRule.check(
+    'file.js',
+    'export const PARTNER_TOKEN_ISSUER = "oss-oopssec-store";',
+  );
+
+  expect(findings).toHaveLength(0);
+});
+
+it('does not flag a public token scope string (metadata, not signing material)', () => {
+  const findings = noHardcodedSecretRule.check(
+    'file.js',
+    'export const PARTNER_TOKEN_SCOPE = "orders:read";',
+  );
+
+  expect(findings).toHaveLength(0);
+});
+
+it('does not flag a token TTL/expiry value expressed as a string', () => {
+  const findings = noHardcodedSecretRule.check(
+    'file.js',
+    'export const PARTNER_TOKEN_TTL = "3600";',
+  );
+
+  expect(findings).toHaveLength(0);
+});
+
+it('still flags an actual secret whose name happens to share a word with metadata fields', () => {
+  const findings = noHardcodedSecretRule.check(
+    'file.js',
+    'const apiSecretKey = "sk_live_abc123";',
+  );
+
+  expect(findings).toHaveLength(1);
+});
