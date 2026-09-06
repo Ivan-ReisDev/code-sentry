@@ -72,8 +72,7 @@ jobs:
                           PYTHON_ROOT="$(dirname "$(dirname "$PYTHON_BIN")")"
                           mkdir -p "${{ matrix.package }}/runtime"
                           cp -a "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
-                          "${{ matrix.package }}/${{ matrix.python }}" -m ensurepip --upgrade
-                          "${{ matrix.package }}/${{ matrix.python }}" -m pip install --no-cache-dir "semgrep==$SEMGREP_VERSION"
+                          "${{ matrix.package }}/${{ matrix.python }}" -m pip install --no-cache-dir --break-system-packages "semgrep==$SEMGREP_VERSION"
                           node scripts/write-runtime-lock.mjs "${{ matrix.package }}"
                   - name: Prepare fixed offline OWASP snapshot
                     run: npm run prepare:owasp-rules
