@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { delimiter, dirname } from 'node:path';
 import { promisify } from 'node:util';
 import type { RuleFinding, Severity } from '../rules/rule.interface.js';
 import type { ScanResult } from './scan-result.js';
@@ -54,7 +55,7 @@ const outputFromError = (error: unknown): string | undefined =>
 export type SemgrepExecutor = (
       file: string,
       args: string[],
-      options: { cwd: string; maxBuffer: number },
+      options: { cwd: string; maxBuffer: number; env?: NodeJS.ProcessEnv },
 ) => Promise<{ stdout: string }>;
 
 export const runBundledSemgrep = async (
@@ -82,9 +83,16 @@ export const runBundledSemgrep = async (
             targetDir,
       ];
       let stdout: string;
+      // O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
+      // em vez de por caminho absoluto — o diretório do runtime precisa vir na frente do PATH
+      // para que esse auxiliar (instalado ao lado do executável semgrep) seja encontrado.
+      const env = {
+            ...process.env,
+            PATH: `${dirname(runtime.semgrep)}${delimiter}${process.env.PATH ?? ''}`,
+      };
 
       try {
-            ({ stdout } = await execute(runtime.semgrep, args, { cwd: targetDir, maxBuffer: 20 * 1024 * 1024 }));
+            ({ stdout } = await execute(runtime.semgrep, args, { cwd: targetDir, maxBuffer: 20 * 1024 * 1024, env }));
       } catch (error) {
             const output = outputFromError(error);
             if (!output) {

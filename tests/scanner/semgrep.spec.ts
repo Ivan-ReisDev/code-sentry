@@ -1,3 +1,4 @@
+import { delimiter } from 'node:path';
 import { expect, it } from 'vitest';
 import {
       mapSemgrepReportToFindings,
@@ -120,4 +121,16 @@ it('invokes the bundled semgrep executable directly, not via the deprecated "pyt
       );
       expect(args).not.toContain('-m');
       expect(args.join(' ')).not.toContain('semgrep.dev');
+});
+
+it('puts the runtime\'s own directory first on PATH, since Semgrep execs a "pysemgrep" helper by bare name', async () => {
+      let receivedEnv: NodeJS.ProcessEnv | undefined;
+      const execute = (_file: string, _args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+            receivedEnv = options.env;
+            return Promise.resolve({ stdout: JSON.stringify({ results: [], paths: { scanned: [] } }) });
+      };
+
+      await runBundledSemgrep('.', { semgrep: '/runtime/bin/semgrep' }, '/local/owasp.yml', execute);
+
+      expect(receivedEnv?.PATH?.split(delimiter)[0]).toBe('/runtime/bin');
 });
