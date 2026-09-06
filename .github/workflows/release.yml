@@ -82,6 +82,8 @@ jobs:
                           uv python install "$PYTHON_VERSION"
                           PYTHON_BIN="$(uv python find "$PYTHON_VERSION")"
                           PYTHON_DIR="$(uv python dir)"
+                          echo "PYTHON_BIN=$PYTHON_BIN"
+                          echo "PYTHON_DIR=$PYTHON_DIR"
                           # A instalação do uv aninha o executável em profundidades diferentes por
                           # plataforma (ex.: bin/python3.12 no Linux, install/python.exe no Windows).
                           # Em vez de fixar o caminho, descobrimos o nome da pasta raiz da instalação
@@ -90,15 +92,25 @@ jobs:
                           INSTALL_NAME="${RELATIVE%%/*}"
                           PYTHON_ROOT="$PYTHON_DIR/$INSTALL_NAME"
                           EXE_RELATIVE="${PYTHON_BIN#"$PYTHON_ROOT"/}"
+                          echo "PYTHON_ROOT=$PYTHON_ROOT"
+                          echo "EXE_RELATIVE=$EXE_RELATIVE"
                           mkdir -p "${{ matrix.package }}/runtime"
                           cp -a "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
                           COPIED_PYTHON="${{ matrix.package }}/runtime/python/$EXE_RELATIVE"
-                          "$COPIED_PYTHON" -m pip install --no-cache-dir --break-system-packages "semgrep==$SEMGREP_VERSION"
-                          SEMGREP_PATH="$(find "${{ matrix.package }}/runtime/python" -iname "${{ matrix.semgrep_binary }}" -type f | head -n1)"
-                          if [ -z "$SEMGREP_PATH" ]; then
-                                echo "Não foi possível localizar o executável semgrep instalado." >&2
+                          echo "COPIED_PYTHON=$COPIED_PYTHON"
+                          if [ ! -x "$COPIED_PYTHON" ]; then
+                                echo "O Python copiado não existe ou não é executável: $COPIED_PYTHON" >&2
+                                find "${{ matrix.package }}/runtime/python" -maxdepth 3 >&2
                                 exit 1
                           fi
+                          "$COPIED_PYTHON" -m pip install --no-cache-dir --break-system-packages "semgrep==$SEMGREP_VERSION"
+                          SEMGREP_PATH="$(find "${{ matrix.package }}/runtime/python" -iname "${{ matrix.semgrep_binary }}" | head -n1)"
+                          if [ -z "$SEMGREP_PATH" ]; then
+                                echo "Não foi possível localizar o executável semgrep instalado." >&2
+                                find "${{ matrix.package }}/runtime/python" -maxdepth 5 -iname "semgrep*" >&2
+                                exit 1
+                          fi
+                          echo "SEMGREP_PATH=$SEMGREP_PATH"
                           SEMGREP_RELATIVE="${SEMGREP_PATH#"${{ matrix.package }}"/}"
                           node scripts/write-runtime-manifest.mjs "${{ matrix.package }}" "$SEMGREP_RELATIVE"
                           node scripts/write-runtime-lock.mjs "${{ matrix.package }}"
