@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import type { Rule, RuleFinding } from '../src/rules/rule.interface.js';
 import { runScan } from '../src/scanner/scanner.js';
 
@@ -21,44 +21,42 @@ const fakeRule: Rule = {
   },
 };
 
-describe('runScan', () => {
-  let dir: string;
+let dir: string;
 
-  beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'codesentry-'));
-    await writeFile(join(dir, 'a.ts'), 'const a = 1;');
-    await writeFile(join(dir, 'b.ts'), 'const b = 2;');
-  });
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), 'codesentry-'));
+  await writeFile(join(dir, 'a.ts'), 'const a = 1;');
+  await writeFile(join(dir, 'b.ts'), 'const b = 2;');
+});
 
-  afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
-  });
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
 
-  it('applies every rule to every scanned file', async () => {
-    const result = await runScan(dir, [fakeRule]);
+it('applies every rule to every scanned file', async () => {
+  const result = await runScan(dir, [fakeRule]);
 
-    expect(result.scannedFiles).toBe(2);
-    expect(result.findings).toHaveLength(2);
-  });
+  expect(result.scannedFiles).toBe(2);
+  expect(result.findings).toHaveLength(2);
+});
 
-  it('returns no findings when there are no rules', async () => {
-    const result = await runScan(dir, []);
+it('returns no findings when there are no rules', async () => {
+  const result = await runScan(dir, []);
 
-    expect(result.scannedFiles).toBe(2);
-    expect(result.findings).toHaveLength(0);
-  });
+  expect(result.scannedFiles).toBe(2);
+  expect(result.findings).toHaveLength(0);
+});
 
-  it('produces the same result with a custom (serialized) concurrency', async () => {
-    const result = await runScan(dir, [fakeRule], 1);
+it('produces the same result with a custom (serialized) concurrency', async () => {
+  const result = await runScan(dir, [fakeRule], 1);
 
-    expect(result.scannedFiles).toBe(2);
-    expect(result.findings).toHaveLength(2);
-  });
+  expect(result.scannedFiles).toBe(2);
+  expect(result.findings).toHaveLength(2);
+});
 
-  it('uses a sensible default concurrency when none is provided', async () => {
-    const result = await runScan(dir, [fakeRule]);
+it('uses a sensible default concurrency when none is provided', async () => {
+  const result = await runScan(dir, [fakeRule]);
 
-    expect(result.scannedFiles).toBe(2);
-    expect(result.findings).toHaveLength(2);
-  });
+  expect(result.scannedFiles).toBe(2);
+  expect(result.findings).toHaveLength(2);
 });

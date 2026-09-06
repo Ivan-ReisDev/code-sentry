@@ -44,6 +44,24 @@ const writeMarkdownReportIfNeeded = async (result: ScanResult, targetDir: string
   }
 };
 
+const createScanTasks = (
+  path: string,
+  rules: Rule[],
+  taskTitle: string,
+  onResult: (result: ScanResult) => void,
+) =>
+  new Listr([
+    {
+      title: taskTitle,
+      task: () =>
+        runScan(path, rules)
+          .then(onResult)
+          .catch((error: unknown) => {
+            throw new Error(`Falha durante a análise: ${errorMessage(error)}`, { cause: error });
+          }),
+    },
+  ]);
+
 export const scanAndReport = async (
   path: string,
   rules: Rule[],
@@ -51,19 +69,9 @@ export const scanAndReport = async (
   options: ScanOutputOptions,
 ): Promise<void> => {
   let result: ScanResult | undefined;
-  const tasks = new Listr([
-    {
-      title: taskTitle,
-      task: () =>
-        runScan(path, rules)
-          .then((scanResult) => {
-            result = scanResult;
-          })
-          .catch((error: unknown) => {
-            throw new Error(`Falha durante a análise: ${errorMessage(error)}`, { cause: error });
-          }),
-    },
-  ]);
+  const tasks = createScanTasks(path, rules, taskTitle, (scanResult) => {
+    result = scanResult;
+  });
 
   try {
     await tasks.run();

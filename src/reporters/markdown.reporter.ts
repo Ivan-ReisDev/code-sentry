@@ -41,29 +41,41 @@ const severitySection = (severity: Severity, findings: RuleFinding[]): string[] 
   return lines;
 };
 
-export const toMarkdownReport = (result: ScanResult, generatedAt: Date = new Date()): string => {
-  const bySeverity = groupBy(result.findings, (f) => f.severity);
-  const lines: string[] = [];
+const reportHeader = (result: ScanResult, generatedAt: Date): string[] => [
+  '# Relatório CodeSentry',
+  '',
+  `- **Gerado em:** ${generatedAt.toISOString()}`,
+  `- **Arquivos analisados:** ${result.scannedFiles}`,
+  `- **Duração:** ${result.durationMs}ms`,
+  `- **Total de problemas:** ${result.findings.length}`,
+  '',
+];
 
-  lines.push('# Relatório CodeSentry', '');
-  lines.push(`- **Gerado em:** ${generatedAt.toISOString()}`);
-  lines.push(`- **Arquivos analisados:** ${result.scannedFiles}`);
-  lines.push(`- **Duração:** ${result.durationMs}ms`);
-  lines.push(`- **Total de problemas:** ${result.findings.length}`, '');
-
-  lines.push('## Resumo por severidade', '', '| Severidade | Quantidade |', '| --- | --- |');
+const summaryTable = (bySeverity: Map<string, RuleFinding[]>): string[] => {
+  const lines = ['## Resumo por severidade', '', '| Severidade | Quantidade |', '| --- | --- |'];
   for (const severity of SEVERITY_ORDER) {
     lines.push(`| ${SEVERITY_LABEL[severity]} | ${(bySeverity.get(severity) ?? []).length} |`);
   }
   lines.push('');
+  return lines;
+};
 
+const severitySections = (bySeverity: Map<string, RuleFinding[]>): string[] => {
+  const lines: string[] = [];
   for (const severity of SEVERITY_ORDER) {
     const findings = bySeverity.get(severity) ?? [];
-    if (findings.length === 0) {
-      continue;
+    if (findings.length > 0) {
+      lines.push(...severitySection(severity, findings));
     }
-    lines.push(...severitySection(severity, findings));
   }
+  return lines;
+};
 
-  return lines.join('\n');
+export const toMarkdownReport = (result: ScanResult, generatedAt: Date = new Date()): string => {
+  const bySeverity = groupBy(result.findings, (f) => f.severity);
+  return [
+    ...reportHeader(result, generatedAt),
+    ...summaryTable(bySeverity),
+    ...severitySections(bySeverity),
+  ].join('\n');
 };
