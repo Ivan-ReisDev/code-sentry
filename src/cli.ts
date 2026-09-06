@@ -10,15 +10,18 @@ import { registerHelpCommand } from './commands/help/help.command.js';
 import { registerHighComplexityCommand } from './commands/high-complexity/high-complexity.command.js';
 import { registerInitCommand } from './commands/init/init.command.js';
 import { registerInsecureRandomTokenCommand } from './commands/insecure-random-token/insecure-random-token.command.js';
+import { registerJwtDecodeWithoutVerifyCommand } from './commands/jwt-decode-without-verify/jwt-decode-without-verify.command.js';
 import { registerJwtNoExpirationCommand } from './commands/jwt-no-expiration/jwt-no-expiration.command.js';
 import { registerLongFunctionsCommand } from './commands/long-functions/long-functions.command.js';
 import { registerNoAnyCommand } from './commands/no-any/no-any.command.js';
 import { registerNoEvalCommand } from './commands/no-eval/no-eval.command.js';
 import { registerNoHardcodedSecretCommand } from './commands/no-hardcoded-secret/no-hardcoded-secret.command.js';
 import { registerPermissiveCorsCommand } from './commands/permissive-cors/permissive-cors.command.js';
+import { registerPublicEnvVarSecretCommand } from './commands/public-env-var-secret/public-env-var-secret.command.js';
 import { registerRulesCommand } from './commands/rules/rules.command.js';
 import { registerScanCommand } from './commands/scan/scan.command.js';
 import { registerSecurityLintCommand } from './commands/security-lint/security-lint.command.js';
+import { registerSensitiveDataInLogsCommand } from './commands/sensitive-data-in-logs/sensitive-data-in-logs.command.js';
 import { registerTlsValidationDisabledCommand } from './commands/tls-validation-disabled/tls-validation-disabled.command.js';
 import { registerTooManyForLoopsCommand } from './commands/too-many-for-loops/too-many-for-loops.command.js';
 import { registerTooManyIfsCommand } from './commands/too-many-ifs/too-many-ifs.command.js';
@@ -28,7 +31,9 @@ import { registerTooManyWhileLoopsCommand } from './commands/too-many-while-loop
 import { registerUnhandledPromisesCommand } from './commands/unhandled-promises/unhandled-promises.command.js';
 import { registerUnsafeSqlCommand } from './commands/unsafe-sql/unsafe-sql.command.js';
 import { registerWeakHashAlgorithmCommand } from './commands/weak-hash-algorithm/weak-hash-algorithm.command.js';
+import { registerWeakSecretFallbackCommand } from './commands/weak-secret-fallback/weak-secret-fallback.command.js';
 import { registerXssCommand } from './commands/xss/xss.command.js';
+import { registerXxeUnsafeXmlParsingCommand } from './commands/xxe-unsafe-xml-parsing/xxe-unsafe-xml-parsing.command.js';
 
 const printBanner = (): void => {
   if (!process.stdout.isTTY) {
@@ -73,6 +78,11 @@ const registerSecurityCommands = (program: Command): void => {
   registerXssCommand(program);
   registerSecurityLintCommand(program);
   registerDependencyAuditCommand(program);
+  registerWeakSecretFallbackCommand(program);
+  registerJwtDecodeWithoutVerifyCommand(program);
+  registerXxeUnsafeXmlParsingCommand(program);
+  registerSensitiveDataInLogsCommand(program);
+  registerPublicEnvVarSecretCommand(program);
 };
 
 export const createCli = (): Command => {

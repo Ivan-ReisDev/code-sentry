@@ -45,3 +45,31 @@ it('returns no findings when Math.random is not used', () => {
 
   expect(findings).toHaveLength(0);
 });
+
+it('detects a token derived from hashing a predictable value (email + timestamp)', () => {
+  const findings = insecureRandomTokenRule.check(
+    'file.js',
+    'const timestamp = Date.now();\nconst token = hashMD5(email + timestamp);',
+  );
+
+  expect(findings).toHaveLength(1);
+  expect(findings[0].line).toBe(2);
+});
+
+it('detects a reset token hashed directly from a getTime() call', () => {
+  const findings = insecureRandomTokenRule.check(
+    'file.js',
+    'const resetToken = md5(email + now.getTime());',
+  );
+
+  expect(findings).toHaveLength(1);
+});
+
+it('does not flag a hash-derived token when the input is not a predictable timestamp', () => {
+  const findings = insecureRandomTokenRule.check(
+    'file.js',
+    'const token = sha256(crypto.randomBytes(32));',
+  );
+
+  expect(findings).toHaveLength(0);
+});

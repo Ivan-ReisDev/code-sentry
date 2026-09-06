@@ -21,13 +21,72 @@ const isMathRandomCall = (node: SourceNode): boolean => {
   );
 };
 
-const containsMathRandomCall = (node: SourceNode | undefined): boolean => {
+const HASH_LIKE_NAME_PATTERN = /hash|md5|sha1/i;
+
+const calleeName = (callee: SourceNode | undefined): string | undefined => {
+  if (callee?.type === 'Identifier') {
+    return callee.name as string;
+  }
+  if (callee?.type === 'MemberExpression') {
+    const property = callee.property as SourceNode | undefined;
+    return property?.type === 'Identifier' ? (property.name as string) : undefined;
+  }
+  return undefined;
+};
+
+const isDateNowOrGetTimeCall = (node: SourceNode): boolean => {
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+  const callee = node.callee as SourceNode | undefined;
+  if (callee?.type !== 'MemberExpression') {
+    return false;
+  }
+  const property = callee.property as SourceNode | undefined;
+  const propertyName = property?.type === 'Identifier' ? (property.name as string) : undefined;
+  if (propertyName === 'getTime') {
+    return true;
+  }
+  const object = callee.object as SourceNode | undefined;
+  return object?.type === 'Identifier' && object.name === 'Date' && propertyName === 'now';
+};
+
+const TIMESTAMP_NAME_PATTERN = /timestamp|^now$/i;
+
+const containsPredictableTimestamp = (node: SourceNode | undefined): boolean => {
   if (!node) {
     return false;
   }
   let found = false;
   visitSourceNodes(node, (child) => {
-    if (isMathRandomCall(child)) {
+    if (isDateNowOrGetTimeCall(child)) {
+      found = true;
+    } else if (child.type === 'Identifier' && TIMESTAMP_NAME_PATTERN.test(child.name as string)) {
+      found = true;
+    }
+  });
+  return found;
+};
+
+const isPredictableHashCall = (node: SourceNode): boolean => {
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+  const name = calleeName(node.callee as SourceNode | undefined);
+  if (!name || !HASH_LIKE_NAME_PATTERN.test(name)) {
+    return false;
+  }
+  const args = node.arguments as SourceNode[] | undefined;
+  return containsPredictableTimestamp(args?.[0]);
+};
+
+const containsInsecureValueGeneration = (node: SourceNode | undefined): boolean => {
+  if (!node) {
+    return false;
+  }
+  let found = false;
+  visitSourceNodes(node, (child) => {
+    if (isMathRandomCall(child) || isPredictableHashCall(child)) {
       found = true;
     }
   });
@@ -47,7 +106,7 @@ const findInsecureRandomTokenLines = (filePath: string, content: string): number
     if (
       id?.type === 'Identifier' &&
       TOKEN_NAME_PATTERN.test(id.name as string) &&
-      containsMathRandomCall(init) &&
+      containsInsecureValueGeneration(init) &&
       node.loc
     ) {
       lines.add(node.loc.start.line);
@@ -58,11 +117,12 @@ const findInsecureRandomTokenLines = (filePath: string, content: string): number
 
 export const insecureRandomTokenRule: Rule = {
   id: 'insecure-random-token',
-  description: 'Detecta o uso de Math.random() para gerar tokens/segredos previsíveis',
+  description:
+    'Detecta tokens/segredos gerados de forma previsível (Math.random(), ou hash de um valor previsível como um timestamp)',
   check(filePath: string, content: string): RuleFinding[] {
     return findInsecureRandomTokenLines(filePath, content).map((line) => ({
       ruleId: 'insecure-random-token',
-      message: 'Math.random() não é seguro para gerar tokens — use crypto.randomBytes()',
+      message: 'Token gerado de forma previsível — use crypto.randomBytes()/randomUUID() em vez de Math.random() ou hash de um timestamp',
       file: filePath,
       line,
       severity: 'high',
