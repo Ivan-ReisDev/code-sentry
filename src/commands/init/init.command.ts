@@ -8,20 +8,24 @@ interface InitAnswers {
 }
 
 const collectAnswers = async (): Promise<InitAnswers | undefined> => {
-  const include = await text({
-    message: 'Quais extensões de arquivo devem ser analisadas?',
-    placeholder: '.ts,.js',
-    defaultValue: '.ts,.js',
-  });
-  if (isCancel(include)) {
-    return undefined;
-  }
+  try {
+    const include = await text({
+      message: 'Quais extensões de arquivo devem ser analisadas?',
+      placeholder: '.ts,.js',
+      defaultValue: '.ts,.js',
+    });
+    if (isCancel(include)) {
+      return undefined;
+    }
 
-  const shouldSave = await confirm({ message: 'Salvar essa configuração?' });
-  if (isCancel(shouldSave)) {
-    return undefined;
+    const shouldSave = await confirm({ message: 'Salvar essa configuração?' });
+    if (isCancel(shouldSave)) {
+      return undefined;
+    }
+    return { include, shouldSave };
+  } catch (error) {
+    throw new Error('Não foi possível coletar as opções de configuração.', { cause: error });
   }
-  return { include, shouldSave };
 };
 
 const printOutcome = ({ include, shouldSave }: InitAnswers): void => {
@@ -32,21 +36,26 @@ const printOutcome = ({ include, shouldSave }: InitAnswers): void => {
   outro(message);
 };
 
-const runInit = async (): Promise<void> => {
+const runInit = (): Promise<void> => {
   intro(chalk.cyan('CodeSentry — configuração inicial'));
-  const answers = await collectAnswers();
-  if (!answers) {
-    outro('Cancelado.');
-    return;
-  }
-  printOutcome(answers);
+  return collectAnswers()
+    .then((answers) => {
+      if (!answers) {
+        outro('Cancelado.');
+        return;
+      }
+      printOutcome(answers);
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'erro desconhecido';
+      outro(chalk.red(`Falha ao configurar o CodeSentry: ${message}`));
+      process.exitCode = 1;
+    });
 };
 
 export const registerInitCommand = (program: Command): void => {
   program
     .command('init')
     .description('Configura o CodeSentry no projeto atual (interativo)')
-    .action(async () => {
-      await runInit();
-    });
+    .action(() => runInit());
 };

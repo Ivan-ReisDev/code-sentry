@@ -8,7 +8,7 @@ export const registerDeepNestingCommand = (program: Command): void => {
     .description('Detecta blocos aninhados além do limite recomendado')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, [deepNestingRule], 'Checking nesting depth...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, [deepNestingRule], 'Checking nesting depth...', options),
+    );
 };

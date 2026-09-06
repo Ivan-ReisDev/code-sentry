@@ -8,7 +8,7 @@ export const registerLongFunctionsCommand = (program: Command): void => {
     .description('Detecta funções com mais de 30 linhas')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, [longFunctionRule], 'Checking function length...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, [longFunctionRule], 'Checking function length...', options),
+    );
 };

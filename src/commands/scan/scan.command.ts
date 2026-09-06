@@ -8,7 +8,7 @@ export const registerScanCommand = (program: Command): void => {
     .description('Analisa um diretório em busca de vulnerabilidades e problemas de qualidade')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, allRules, 'Scanning files...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, allRules, 'Scanning files...', options),
+    );
 };

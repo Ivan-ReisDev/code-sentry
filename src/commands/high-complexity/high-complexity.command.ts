@@ -8,7 +8,7 @@ export const registerHighComplexityCommand = (program: Command): void => {
     .description('Detecta funções com muitos condicionais/loops (complexidade alta)')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, [highComplexityRule], 'Checking function complexity...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, [highComplexityRule], 'Checking function complexity...', options),
+    );
 };

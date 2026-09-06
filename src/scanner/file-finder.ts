@@ -9,11 +9,15 @@ const isInsideIgnoredDir = (relativePath: string): boolean => {
 };
 
 export const findFiles = async (targetDir: string): Promise<string[]> => {
-  const entries = await readdir(targetDir, { recursive: true, withFileTypes: true });
+  try {
+    const entries = await readdir(targetDir, { recursive: true, withFileTypes: true });
 
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => join(entry.parentPath, entry.name))
-    .filter((filePath) => !isInsideIgnoredDir(filePath))
-    .filter((filePath) => SCANNABLE_EXTENSIONS.some((ext) => filePath.endsWith(ext)));
+    return entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => join(entry.parentPath, entry.name))
+      .filter((filePath) => !isInsideIgnoredDir(filePath))
+      .filter((filePath) => SCANNABLE_EXTENSIONS.some((ext) => filePath.endsWith(ext)));
+  } catch (error) {
+    throw new Error(`Não foi possível listar os arquivos em "${targetDir}".`, { cause: error });
+  }
 };

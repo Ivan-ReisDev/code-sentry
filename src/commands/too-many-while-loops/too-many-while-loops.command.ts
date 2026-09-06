@@ -8,7 +8,7 @@ export const registerTooManyWhileLoopsCommand = (program: Command): void => {
     .description('Detecta funções com muitos loops "while"/"do-while"')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, [tooManyWhileLoopsRule], 'Checking while-loop count...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, [tooManyWhileLoopsRule], 'Checking while-loop count...', options),
+    );
 };

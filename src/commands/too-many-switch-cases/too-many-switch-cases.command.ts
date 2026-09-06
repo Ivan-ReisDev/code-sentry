@@ -8,7 +8,7 @@ export const registerTooManySwitchCasesCommand = (program: Command): void => {
     .description('Detecta "switch" com muitos "case" (considere um mapa/lookup)')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, [tooManySwitchCasesRule], 'Checking switch cases...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, [tooManySwitchCasesRule], 'Checking switch cases...', options),
+    );
 };

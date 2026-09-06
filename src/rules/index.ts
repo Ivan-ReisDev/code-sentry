@@ -1,9 +1,14 @@
 import type { Rule } from './rule.interface.js';
+import { awaitNoTryCatchRule } from './await-no-try-catch.rule.js';
 import { deepNestingRule } from './deep-nesting.rule.js';
+import { emptyCatchRule } from './empty-catch.rule.js';
+import { floatingPromiseRule } from './floating-promise.rule.js';
 import { highComplexityRule } from './high-complexity.rule.js';
 import { longFunctionRule } from './long-function.rule.js';
+import { noAnyRule } from './no-any.rule.js';
 import { noEvalRule } from './no-eval.rule.js';
 import { noHardcodedSecretRule } from './no-hardcoded-secret.rule.js';
+import { promiseNoCatchRule } from './promise-no-catch.rule.js';
 import { tooManyForLoopsRule } from './too-many-for-loops.rule.js';
 import { tooManyIfsRule } from './too-many-ifs.rule.js';
 import { tooManySwitchCasesRule } from './too-many-switch-cases.rule.js';
@@ -23,4 +28,9 @@ export const allRules: Rule[] = [
   tooManyWhileLoopsRule,
   tooManyTryCatchRule,
   tooManySwitchCasesRule,
+  promiseNoCatchRule,
+  awaitNoTryCatchRule,
+  floatingPromiseRule,
+  noAnyRule,
+  emptyCatchRule,
 ];

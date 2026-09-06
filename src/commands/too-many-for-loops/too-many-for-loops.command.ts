@@ -8,7 +8,7 @@ export const registerTooManyForLoopsCommand = (program: Command): void => {
     .description('Detecta funções com muitos loops "for"/"for-in"/"for-of"')
     .argument('[path]', 'diretório a ser analisado', '.')
     .option('--json', 'exibe o resultado em JSON')
-    .action(async (path: string, options: ScanOutputOptions) => {
-      await scanAndReport(path, [tooManyForLoopsRule], 'Checking for-loop count...', options);
-    });
+    .action((path: string, options: ScanOutputOptions) =>
+      scanAndReport(path, [tooManyForLoopsRule], 'Checking for-loop count...', options),
+    );
 };
