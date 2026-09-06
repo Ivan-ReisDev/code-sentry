@@ -53,3 +53,27 @@ it('detects eval after a division expression', () => {
 
   expect(findings).toHaveLength(1);
 });
+
+it('detects new Function(...)', () => {
+  const findings = noEvalRule.check('file.js', "new Function('return 1');");
+
+  expect(findings).toHaveLength(1);
+  expect(findings[0]).toMatchObject({
+    ruleId: 'no-eval',
+    file: 'file.js',
+    line: 1,
+    severity: 'high',
+  });
+});
+
+it('detects new Function(...) with multiple arguments', () => {
+  const findings = noEvalRule.check('file.js', "new Function('a', 'b', 'return a + b');");
+
+  expect(findings).toHaveLength(1);
+});
+
+it('does not flag constructing an unrelated class', () => {
+  const findings = noEvalRule.check('file.js', 'new Foo();');
+
+  expect(findings).toHaveLength(0);
+});

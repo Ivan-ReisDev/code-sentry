@@ -23,11 +23,17 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@babel/core": "^8.0.1",
+    "@babel/eslint-parser": "^8.0.1",
     "@babel/parser": "^7.29.8",
+    "@babel/plugin-syntax-typescript": "^8.0.3",
     "@clack/prompts": "^1.7.0",
     "chalk": "^6.0.0",
     "cli-table3": "^0.6.5",
     "commander": "^15.0.0",
+    "eslint": "^10.10.0",
+    "eslint-plugin-no-unsanitized": "^4.1.5",
+    "eslint-plugin-security": "^4.0.1",
     "figlet": "^1.11.4",
     "gradient-string": "^3.0.0",
     "listr2": "^11.1.0"

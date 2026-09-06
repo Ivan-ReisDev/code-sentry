@@ -35,12 +35,16 @@ const isEvalCall = (node: SourceNode): boolean => {
   );
 };
 
+const isNewFunctionCall = (node: SourceNode): boolean => {
+  return node.type === 'NewExpression' && isNamed(node.callee, 'Function');
+};
+
 const findEvalCallLines = (filePath: string, content: string): number[] => {
   const lines = new Set<number>();
   const sourceFile = parseSourceFile(filePath, content);
 
   visitSourceNodes(sourceFile, (node) => {
-    if (isEvalCall(node) && node.loc) {
+    if ((isEvalCall(node) || isNewFunctionCall(node)) && node.loc) {
       lines.add(node.loc.start.line);
     }
   });
@@ -49,11 +53,11 @@ const findEvalCallLines = (filePath: string, content: string): number[] => {
 
 export const noEvalRule: Rule = {
   id: 'no-eval',
-  description: 'Detecta o uso de eval(), que pode executar código arbitrário',
+  description: 'Detecta o uso de eval() ou new Function(), que podem executar código arbitrário',
   check(filePath: string, content: string): RuleFinding[] {
     return findEvalCallLines(filePath, content).map((line) => ({
       ruleId: 'no-eval',
-      message: 'Uso de eval() encontrado — evite executar código arbitrário',
+      message: 'Uso de eval()/new Function() encontrado — evite executar código arbitrário',
       file: filePath,
       line,
       severity: 'high',
