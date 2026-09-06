@@ -6,3 +6,7 @@ coverage/
 .env
 .DS_Store
 *.tsbuildinfo
+codesentry-report-*.md
+packages/*/runtime/*
+!packages/*/runtime/.gitkeep
+packages/semgrep-rules/rules/ruleset.lock.json

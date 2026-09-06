@@ -1,0 +1,21 @@
+{
+      "name": "codesentry-semgrep-linux-x64",
+      "version": "0.1.0",
+      "private": true,
+      "description": "Runtime Semgrep CE embutido do CodeSentry para Linux x64",
+      "os": [
+            "linux"
+      ],
+      "cpu": [
+            "x64"
+      ],
+      "files": [
+            "runtime",
+            "runtime.json",
+            "runtime.lock.json",
+            "THIRD_PARTY_NOTICES.md"
+      ],
+      "exports": {
+            "./runtime.json": "./runtime.json"
+      }
+}

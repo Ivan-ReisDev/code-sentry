@@ -36,68 +36,68 @@ import { registerXssCommand } from './commands/xss/xss.command.js';
 import { registerXxeUnsafeXmlParsingCommand } from './commands/xxe-unsafe-xml-parsing/xxe-unsafe-xml-parsing.command.js';
 
 const printBanner = (): void => {
-  if (!process.stdout.isTTY) {
-    return;
-  }
+      if (!process.stdout.isTTY) {
+            return;
+      }
 
-  const banner = figlet.textSync('CodeSentry', { font: 'Standard' });
-  console.log(gradient(['cyan', 'magenta'])(banner));
+      const banner = figlet.textSync('CodeSentry', { font: 'Standard' });
+      console.log(gradient(['cyan', 'magenta'])(banner));
 };
 
 const registerAnalysisCommands = (program: Command): void => {
-  registerScanCommand(program);
-  registerLongFunctionsCommand(program);
-  registerDeepNestingCommand(program);
-  registerHighComplexityCommand(program);
-  registerTooManyIfsCommand(program);
-  registerTooManyForLoopsCommand(program);
-  registerTooManyWhileLoopsCommand(program);
-  registerTooManyTryCatchCommand(program);
-  registerTooManySwitchCasesCommand(program);
+      registerScanCommand(program);
+      registerLongFunctionsCommand(program);
+      registerDeepNestingCommand(program);
+      registerHighComplexityCommand(program);
+      registerTooManyIfsCommand(program);
+      registerTooManyForLoopsCommand(program);
+      registerTooManyWhileLoopsCommand(program);
+      registerTooManyTryCatchCommand(program);
+      registerTooManySwitchCasesCommand(program);
 };
 
 const registerQualityCommands = (program: Command): void => {
-  registerUnhandledPromisesCommand(program);
-  registerNoAnyCommand(program);
-  registerEmptyCatchCommand(program);
-  registerRulesCommand(program);
-  registerHelpCommand(program);
+      registerUnhandledPromisesCommand(program);
+      registerNoAnyCommand(program);
+      registerEmptyCatchCommand(program);
+      registerRulesCommand(program);
+      registerHelpCommand(program);
 };
 
 const registerSecurityCommands = (program: Command): void => {
-  registerNoEvalCommand(program);
-  registerCommandInjectionCommand(program);
-  registerUnsafeSqlCommand(program);
-  registerJwtNoExpirationCommand(program);
-  registerNoHardcodedSecretCommand(program);
-  registerPermissiveCorsCommand(program);
-  registerInsecureRandomTokenCommand(program);
-  registerWeakHashAlgorithmCommand(program);
-  registerTlsValidationDisabledCommand(program);
-  registerExpressMissingBodyLimitCommand(program);
-  registerXssCommand(program);
-  registerSecurityLintCommand(program);
-  registerDependencyAuditCommand(program);
-  registerWeakSecretFallbackCommand(program);
-  registerJwtDecodeWithoutVerifyCommand(program);
-  registerXxeUnsafeXmlParsingCommand(program);
-  registerSensitiveDataInLogsCommand(program);
-  registerPublicEnvVarSecretCommand(program);
+      registerNoEvalCommand(program);
+      registerCommandInjectionCommand(program);
+      registerUnsafeSqlCommand(program);
+      registerJwtNoExpirationCommand(program);
+      registerNoHardcodedSecretCommand(program);
+      registerPermissiveCorsCommand(program);
+      registerInsecureRandomTokenCommand(program);
+      registerWeakHashAlgorithmCommand(program);
+      registerTlsValidationDisabledCommand(program);
+      registerExpressMissingBodyLimitCommand(program);
+      registerXssCommand(program);
+      registerSecurityLintCommand(program);
+      registerDependencyAuditCommand(program);
+      registerWeakSecretFallbackCommand(program);
+      registerJwtDecodeWithoutVerifyCommand(program);
+      registerXxeUnsafeXmlParsingCommand(program);
+      registerSensitiveDataInLogsCommand(program);
+      registerPublicEnvVarSecretCommand(program);
 };
 
 export const createCli = (): Command => {
-  printBanner();
+      printBanner();
 
-  const program = new Command()
-    .name('codesentry')
-    .description('CLI de verificação de vulnerabilidades e qualidade de código')
-    .version('0.1.0')
-    .helpCommand(false);
+      const program = new Command()
+            .name('codesentry')
+            .description('CLI de verificação de vulnerabilidades e qualidade de código')
+            .version('0.1.0')
+            .helpCommand(false);
 
-  registerInitCommand(program);
-  registerAnalysisCommands(program);
-  registerQualityCommands(program);
-  registerSecurityCommands(program);
+      registerInitCommand(program);
+      registerAnalysisCommands(program);
+      registerQualityCommands(program);
+      registerSecurityCommands(program);
 
-  return program;
+      return program;
 };

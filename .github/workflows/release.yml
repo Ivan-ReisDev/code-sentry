@@ -1,0 +1,105 @@
+name: Publish CodeSentry
+
+on:
+      workflow_dispatch:
+      push:
+            tags: ['v*']
+
+permissions:
+      contents: read
+
+env:
+      SEMGREP_VERSION: 1.145.0
+      PYTHON_VERSION: '3.12'
+      NODE_VERSION: '22'
+
+jobs:
+      verify:
+            runs-on: ubuntu-latest
+            steps:
+                  - uses: actions/checkout@v4
+                  - uses: actions/setup-node@v4
+                    with:
+                          node-version: ${{ env.NODE_VERSION }}
+                          registry-url: https://registry.npmjs.org
+                  - run: npm ci
+                  - run: npm run typecheck
+                  - run: npm test
+                  - run: npm run build
+
+      rules:
+            needs: verify
+            runs-on: ubuntu-latest
+            steps:
+                  - uses: actions/checkout@v4
+                  - uses: actions/setup-node@v4
+                    with:
+                          node-version: ${{ env.NODE_VERSION }}
+                          registry-url: https://registry.npmjs.org
+                  - run: npm ci --ignore-scripts
+                  # Rede só é usada na preparação da release; o arquivo publicado é local e fixado.
+                  - run: npm run prepare:owasp-rules
+                  - run: npm pkg delete private --prefix packages/semgrep-rules
+                  - run: npm publish ./packages/semgrep-rules --access public
+                    env:
+                          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      runtimes:
+            needs: [verify, rules]
+            strategy:
+                  fail-fast: false
+                  matrix:
+                        include:
+                              - os: ubuntu-latest
+                                package: packages/semgrep-linux-x64
+                                python: runtime/python/bin/python3
+                              - os: windows-latest
+                                package: packages/semgrep-win32-x64
+                                python: runtime/python/python.exe
+            runs-on: ${{ matrix.os }}
+            steps:
+                  - uses: actions/checkout@v4
+                  - uses: actions/setup-node@v4
+                    with:
+                          node-version: ${{ env.NODE_VERSION }}
+                          registry-url: https://registry.npmjs.org
+                  - uses: astral-sh/setup-uv@v6
+                  - name: Create portable Python and install Semgrep CE
+                    shell: bash
+                    run: |
+                          uv python install "$PYTHON_VERSION"
+                          PYTHON_BIN="$(uv python find "$PYTHON_VERSION")"
+                          PYTHON_ROOT="$(dirname "$(dirname "$PYTHON_BIN")")"
+                          mkdir -p "${{ matrix.package }}/runtime"
+                          cp -a "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
+                          "${{ matrix.package }}/${{ matrix.python }}" -m ensurepip --upgrade
+                          "${{ matrix.package }}/${{ matrix.python }}" -m pip install --no-cache-dir "semgrep==$SEMGREP_VERSION"
+                          node scripts/write-runtime-lock.mjs "${{ matrix.package }}"
+                  - name: Prepare fixed offline OWASP snapshot
+                    run: npm run prepare:owasp-rules
+                  - name: Smoke test bundled runtime against multi-language fixture
+                    shell: bash
+                    run: |
+                          npm install --no-save "./${{ matrix.package }}"
+                          npm run build
+                          node dist/index.js scan tests/fixtures/semgrep-multilang --json
+                  - run: npm pkg delete private --prefix ${{ matrix.package }}
+                  - run: npm publish ./${{ matrix.package }} --access public
+                    env:
+                          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      publish-cli:
+            needs: [rules, runtimes]
+            runs-on: ubuntu-latest
+            steps:
+                  - uses: actions/checkout@v4
+                  - uses: actions/setup-node@v4
+                    with:
+                          node-version: ${{ env.NODE_VERSION }}
+                          registry-url: https://registry.npmjs.org
+                  - run: npm ci
+                  - run: npm run build
+                  - run: npm pkg delete private
+                  - run: npm publish --access public
+                    env:
+                          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

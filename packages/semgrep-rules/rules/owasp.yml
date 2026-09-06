@@ -1,0 +1,3 @@
+# This file is replaced by scripts/prepare-owasp-rules.mjs during a release.
+# It intentionally has no remote include: installed CodeSentry packages scan offline.
+rules: []

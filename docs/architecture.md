@@ -47,14 +47,14 @@ Estrutura inicial de pastas do projeto e a responsabilidade de cada uma.
 
 ## Responsabilidade de cada pasta
 
-| Pasta | Responsabilidade |
-|---|---|
-| `commands` | Recebe e trata os comandos da CLI, como `scan`, `init` e `rules` |
-| `scanner` | Procura os arquivos do projeto e coordena a análise |
-| `rules` | Contém as regras que identificam problemas (ex: uso de `eval`, segredo hardcoded, SQL inseguro) |
-| `reporters` | Exibe ou exporta os resultados (console, JSON, etc) |
-| `config` | Lê e resolve as configurações do usuário |
-| `tests` | Testes do scanner e das regras |
+| Pasta       | Responsabilidade                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `commands`  | Recebe e trata os comandos da CLI, como `scan`, `init` e `rules`                                |
+| `scanner`   | Procura os arquivos do projeto e coordena a análise                                             |
+| `rules`     | Contém as regras que identificam problemas (ex: uso de `eval`, segredo hardcoded, SQL inseguro) |
+| `reporters` | Exibe ou exporta os resultados (console, JSON, etc)                                             |
+| `config`    | Lê e resolve as configurações do usuário                                                        |
+| `tests`     | Testes do scanner e das regras                                                                  |
 
 ## Fluxo básico
 

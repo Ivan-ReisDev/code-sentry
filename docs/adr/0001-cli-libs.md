@@ -18,7 +18,7 @@ que podem levar algum tempo.
 1. **Combo de libs especializadas** (Commander + chalk + @clack/prompts +
    listr2 + figlet/gradient-string) — cada camada resolvida pela melhor
    ferramenta do nicho.
-2. **Ink** (React para terminal) — permite montar um dashboard *live* de
+2. **Ink** (React para terminal) — permite montar um dashboard _live_ de
    verdade, com componentes reativos. Mais poder, mais complexidade/peso.
 3. **Gluegun** — framework "tudo em um" que já empacota várias dessas
    libs. Mais rápido para começar, porém menos flexível para uma
@@ -31,14 +31,14 @@ que podem levar algum tempo.
 
 Adotar o **combo de libs especializadas** como ponto de partida:
 
-| Camada | Lib | Papel |
-|---|---|---|
-| Parsing de comandos | **Commander.js** | Define `codesentry scan`, `codesentry report`, etc. |
-| Cores base | **chalk** | Colorir texto/saídas no terminal. |
-| Prompts interativos | **@clack/prompts** | Perguntas, confirmações e seleção com visual coeso. |
-| Progresso de tarefas | **listr2** | Lista de tarefas aninhadas com spinner durante o scan (ex: dependências, SAST, etc). |
-| Banner/logo | **figlet** + **gradient-string** | Banner ASCII colorido com o nome do projeto no `--help`/início. |
-| Tabelas de resultado | **cli-table3** | Exibição de vulnerabilidades (severidade, CVE, arquivo). |
+| Camada               | Lib                              | Papel                                                                                |
+| -------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| Parsing de comandos  | **Commander.js**                 | Define `codesentry scan`, `codesentry report`, etc.                                  |
+| Cores base           | **chalk**                        | Colorir texto/saídas no terminal.                                                    |
+| Prompts interativos  | **@clack/prompts**               | Perguntas, confirmações e seleção com visual coeso.                                  |
+| Progresso de tarefas | **listr2**                       | Lista de tarefas aninhadas com spinner durante o scan (ex: dependências, SAST, etc). |
+| Banner/logo          | **figlet** + **gradient-string** | Banner ASCII colorido com o nome do projeto no `--help`/início.                      |
+| Tabelas de resultado | **cli-table3**                   | Exibição de vulnerabilidades (severidade, CVE, arquivo).                             |
 
 Motivo: é o caminho mais rápido para já sair com uma CLI colorida e com
 identidade, cobrindo o fluxo principal (rodar scan → ver progresso →

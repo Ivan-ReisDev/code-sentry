@@ -38,16 +38,15 @@ código-fonte resolve — isso exige uma base de dados de advisories.
    o resto do projeto, mas reimplementar detecção de XSS e o catálogo
    do `eslint-plugin-security` do zero é retrabalho desnecessário e
    tende a ter pior cobertura que as libs já maduras da comunidade.
-2. **Ferramenta externa tipo Semgrep/njsscan** — cobertura muito boa,
-   porém são binários/runtimes externos (Python, no caso do
-   njsscan), fora do ecossistema npm, com fricção de instalação e
-   operação bem maior do que o resto desta CLI (que é 100% Node/npm).
+2. **Semgrep CE embutido** — cobertura multi-linguagem e catálogo
+   OWASP amplo. Antes era rejeitado por exigir Python externo; a ADR
+   0004 torna-o viável ao publicar um runtime portátil junto da CLI.
 3. **ESLint (`Linter` em memória) + `eslint-plugin-security` +
    `eslint-plugin-no-unsanitized`**, usando `@typescript-eslint/parser`
    para gerar a AST — abordagem natural no ecossistema JS/TS, mas
    **inviável neste projeto**: `@typescript-eslint/parser` trava em
    tempo de execução com TypeScript 7 (`"typescript-eslint does not
-   support TS 7.0"`), que é a versão já usada pelo CodeSentry.
+support TS 7.0"`), que é a versão já usada pelo CodeSentry.
    Confirmado empiricamente antes de prosseguir.
 4. **ESLint (`Linter` em memória) + `eslint-plugin-security` +
    `eslint-plugin-no-unsanitized`, usando `@babel/eslint-parser`** para
@@ -65,15 +64,16 @@ código-fonte resolve — isso exige uma base de dados de advisories.
 
 ## Decisão
 
-Adotar a **opção 4 + 5**:
+Adotar a **opção 2 + 4 + 5**:
 
-| Camada | Lib | Papel |
-|---|---|---|
-| Motor de lint em memória | **eslint** (`Linter`) | Roda regras de terceiros sobre o conteúdo de cada arquivo, sem precisar de `eslintrc`/config do projeto alvo. |
-| Parser (AST → ESTree) | **@babel/eslint-parser** + **@babel/core** (peer) + **@babel/plugin-syntax-typescript** | Gera AST compatível com ESLint a partir do `@babel/parser`, evitando o pacote `typescript` (e o crash do `@typescript-eslint/parser` com TS 7). Só sintaxe — sem checagem de tipos. |
-| Sinks de XSS | **eslint-plugin-no-unsanitized** | `no-unsanitized/property` e `no-unsanitized/method` — detecta atribuições/chamadas perigosas (`innerHTML`, `document.write`, etc.) com conteúdo não comprovadamente seguro. |
-| Padrões gerais de segurança | **eslint-plugin-security** | Sub-regras selecionadas (object injection, regex não literal/catastrófico, `fs` não literal, `pseudoRandomBytes`, timing attack, buffer inseguro, mustache escape, CSRF sem checagem de método) — excluindo as que se sobrepõem a regras hand-rolled próprias (`detect-eval-with-expression`, `detect-child-process`). |
-| Auditoria de dependências (SCA) | **`npm audit --json`** (via `child_process.execFile`, sem lib nova) | Fonte de verdade madura para vulnerabilidades conhecidas nas dependências do projeto analisado. |
+| Camada                          | Lib                                                                                     | Papel                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Motor de lint em memória        | **eslint** (`Linter`)                                                                   | Roda regras de terceiros sobre o conteúdo de cada arquivo, sem precisar de `eslintrc`/config do projeto alvo.                                                                                                                                                                                                          |
+| Parser (AST → ESTree)           | **@babel/eslint-parser** + **@babel/core** (peer) + **@babel/plugin-syntax-typescript** | Gera AST compatível com ESLint a partir do `@babel/parser`, evitando o pacote `typescript` (e o crash do `@typescript-eslint/parser` com TS 7). Só sintaxe — sem checagem de tipos.                                                                                                                                    |
+| Sinks de XSS                    | **eslint-plugin-no-unsanitized**                                                        | `no-unsanitized/property` e `no-unsanitized/method` — detecta atribuições/chamadas perigosas (`innerHTML`, `document.write`, etc.) com conteúdo não comprovadamente seguro.                                                                                                                                            |
+| Padrões gerais de segurança     | **eslint-plugin-security**                                                              | Sub-regras selecionadas (object injection, regex não literal/catastrófico, `fs` não literal, `pseudoRandomBytes`, timing attack, buffer inseguro, mustache escape, CSRF sem checagem de método) — excluindo as que se sobrepõem a regras hand-rolled próprias (`detect-eval-with-expression`, `detect-child-process`). |
+| Auditoria de dependências (SCA) | **`npm audit --json`** (via `child_process.execFile`, sem lib nova)                     | Fonte de verdade madura para vulnerabilidades conhecidas nas dependências do projeto analisado.                                                                                                                                                                                                                        |
+| SAST multi-linguagem            | **Semgrep CE embutido + snapshot `p/owasp-top-ten`**                                    | Regras OWASP locais, sem autenticação, Registry ou Python instalado pelo usuário. Ver ADR 0004.                                                                                                                                                                                                                        |
 
 SQL injection genérica por concatenação continua **hand-rolled**
 (`unsafe-sql`): não existe uma lib madura de nicho JS/ESLint
@@ -83,9 +83,8 @@ pesadas, fora de escopo aqui.
 
 ### Rejeitadas por ora
 
-- **Semgrep/njsscan**: dependeriam de um runtime externo
-  (Python/binário) fora do ecossistema npm, com fricção de instalação
-  desproporcional ao resto da CLI.
+- **njsscan**: ainda exigiria um runtime externo e duplica parte da
+  cobertura provida pelo Semgrep CE embutido.
 - **`@typescript-eslint/parser`**: incompatível com TypeScript 7 (erro
   em tempo de execução, não só aviso de peer dependency).
 
@@ -106,3 +105,6 @@ pesadas, fora de escopo aqui.
   futuro, reavaliar a troca (reduziria uma dependência, já que
   `@typescript-eslint/parser` também traria checagem mais rica), mas
   não é bloqueante hoje.
+- A cobertura Semgrep é complementar: o motor nativo continua sendo a
+  fonte para as regras JS/TS próprias e `scannedFiles` mantém essa
+  semântica por compatibilidade.

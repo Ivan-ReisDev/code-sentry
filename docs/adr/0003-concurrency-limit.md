@@ -50,7 +50,8 @@ Adotar a **opção 4 (`p-limit`)**, encapsulada em um utilitário
 próprio e testável, `src/scanner/run-with-concurrency-limit.ts`
 (`runWithConcurrencyLimit(items, concurrency, task)`), usado
 internamente por `runScan`. `runScan` ganha um terceiro parâmetro
-opcional `concurrency` (default `DEFAULT_SCAN_CONCURRENCY = 10`),
+opcional `concurrency` (default
+`max(1, min(8, availableParallelism()))`),
 mantendo compatibilidade com todos os chamadores existentes que
 invocam `runScan(path, rules)` com dois argumentos.
 
@@ -70,9 +71,12 @@ expor uma condição de corrida em teste).
 - `findFiles` continua não-streaming (toda a lista de paths ainda é
   carregada em memória antes do processamento) — aceito como
   limitação conhecida; só o processamento (leitura + regras) tem
-  concorrência limitada. Se o número de *arquivos* (não o conteúdo)
+  concorrência limitada. Se o número de _arquivos_ (não o conteúdo)
   se tornar o gargalo de memória, reavaliar tornar `file-finder.ts`
   um gerador assíncrono.
-- O valor de concorrência (`10`) é um default fixo por enquanto; expor
-  isso como flag de CLI (`--concurrency`) fica em aberto para uma
-  iteração futura, caso necessário.
+- O valor padrão acompanha a capacidade disponível da máquina, mas
+  nunca ultrapassa 8 nem cai abaixo de 1. `codesentry scan
+--concurrency <n>` permite um override com inteiro positivo; é útil
+  para CI com memória limitada ou depuração serial.
+- O Semgrep embutido roda somente após o motor nativo (ADR 0004), para
+  não disputar CPU e memória com a fila de arquivos.

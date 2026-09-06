@@ -4,9 +4,9 @@ import { Linter } from 'eslint';
 import babelParser from '@babel/eslint-parser';
 
 export interface EslintFinding {
-  ruleId: string;
-  message: string;
-  line: number;
+      ruleId: string;
+      message: string;
+      line: number;
 }
 
 // Caminho absoluto resolvido a partir deste módulo (não de process.cwd()),
@@ -34,68 +34,67 @@ const isJsxFile = (filePath: string): boolean => /\.(tsx|jsx)$/.test(filePath);
 const SCANNABLE_FILE_GLOBS = ['**/*.js', '**/*.mjs', '**/*.cjs', '**/*.ts', '**/*.jsx', '**/*.tsx'];
 
 const createConfig = (
-  filePath: string,
-  rules: Record<string, 'error' | 'warn'>,
-  plugins: Record<string, unknown>,
-): Linter.Config[] => [
-  {
-    files: SCANNABLE_FILE_GLOBS,
-    languageOptions: {
-      parser: babelParser,
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      parserOptions: {
-        requireConfigFile: false,
-        babelOptions: {
-          plugins: isJsxFile(filePath)
-            ? [SYNTAX_JSX_PLUGIN_PATH, SYNTAX_TYPESCRIPT_PLUGIN_PATH]
-            : [SYNTAX_TYPESCRIPT_PLUGIN_PATH],
-        },
-      },
-    },
-    plugins,
-    rules,
-  },
-] as Linter.Config[];
+      filePath: string,
+      rules: Record<string, 'error' | 'warn'>,
+      plugins: Record<string, unknown>,
+): Linter.Config[] =>
+      [
+            {
+                  files: SCANNABLE_FILE_GLOBS,
+                  languageOptions: {
+                        parser: babelParser,
+                        ecmaVersion: 'latest',
+                        sourceType: 'module',
+                        parserOptions: {
+                              requireConfigFile: false,
+                              babelOptions: {
+                                    plugins: isJsxFile(filePath)
+                                          ? [SYNTAX_JSX_PLUGIN_PATH, SYNTAX_TYPESCRIPT_PLUGIN_PATH]
+                                          : [SYNTAX_TYPESCRIPT_PLUGIN_PATH],
+                              },
+                        },
+                  },
+                  plugins,
+                  rules,
+            },
+      ] as Linter.Config[];
 
 const verify = (content: string, config: Linter.Config[], filename: string): Linter.LintMessage[] => {
-  try {
-    return new Linter().verify(content, config, filename);
-  } catch {
-    return [];
-  }
+      try {
+            return new Linter().verify(content, config, filename);
+      } catch {
+            return [];
+      }
 };
 
 const toFindings = (messages: Linter.LintMessage[]): EslintFinding[] =>
-  messages
-    .filter(
-      (message): message is Linter.LintMessage & { ruleId: string; line: number } =>
-        message.ruleId !== null && typeof message.line === 'number',
-    )
-    .map((message) => ({
-      ruleId: message.ruleId,
-      message: message.message,
-      line: message.line,
-    }));
+      messages
+            .filter(
+                  (message): message is Linter.LintMessage & { ruleId: string; line: number } =>
+                        message.ruleId !== null && typeof message.line === 'number',
+            )
+            .map((message) => ({
+                  ruleId: message.ruleId,
+                  message: message.message,
+                  line: message.line,
+            }));
 
 export const runEslintRules = (
-  filePath: string,
-  content: string,
-  rules: Record<string, 'error' | 'warn'>,
-  plugins: Record<string, unknown>,
+      filePath: string,
+      content: string,
+      rules: Record<string, 'error' | 'warn'>,
+      plugins: Record<string, unknown>,
 ): EslintFinding[] => {
-  // Uma instância nova por chamada: evita qualquer estado/cache compartilhado
-  // entre arquivos processados concorrentemente pelo scanner (Promise.all em
-  // src/scanner/scanner.ts).
-  // O flat config do ESLint não casa `files: ['**/*']` contra caminhos
-  // absolutos de verdade, e por segurança usamos só o basename real (nunca um
-  // nome fixo compartilhado) para não arriscar colisão de cache com libs de
-  // parsing que possam indexar por nome de arquivo. A extensão é preservada
-  // (não trocada por um nome genérico) porque createConfig usa isJsxFile()
-  // para decidir se habilita a sintaxe JSX.
-  const syntheticFilename = basename(filePath) || 'source.js';
+      // Uma instância nova por chamada: evita qualquer estado/cache compartilhado
+      // entre arquivos processados concorrentemente pelo scanner (Promise.all em
+      // src/scanner/scanner.ts).
+      // O flat config do ESLint não casa `files: ['**/*']` contra caminhos
+      // absolutos de verdade, e por segurança usamos só o basename real (nunca um
+      // nome fixo compartilhado) para não arriscar colisão de cache com libs de
+      // parsing que possam indexar por nome de arquivo. A extensão é preservada
+      // (não trocada por um nome genérico) porque createConfig usa isJsxFile()
+      // para decidir se habilita a sintaxe JSX.
+      const syntheticFilename = basename(filePath) || 'source.js';
 
-  return toFindings(
-    verify(content, createConfig(syntheticFilename, rules, plugins), syntheticFilename),
-  );
+      return toFindings(verify(content, createConfig(syntheticFilename, rules, plugins), syntheticFilename));
 };

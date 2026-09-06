@@ -22,6 +22,10 @@
     "build": "tsup src/index.ts --format esm --clean --shims",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests scripts eslint.config.js prettier.config.js --max-warnings 0",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier --write src tests scripts packages .github README.md docs",
+    "format:check": "prettier --check src tests scripts packages .github README.md docs",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare:owasp-rules": "node scripts/prepare-owasp-rules.mjs"
@@ -51,6 +55,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
     "tsup": "^8.5.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",

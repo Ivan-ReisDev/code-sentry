@@ -5,8 +5,8 @@ import { runEslintRules } from './lib/eslint-linter.js';
 import type { Rule, RuleFinding } from './rule.interface.js';
 
 const RULES = {
-  'no-unsanitized/property': 'error',
-  'no-unsanitized/method': 'error',
+      'no-unsanitized/property': 'error',
+      'no-unsanitized/method': 'error',
 } as const;
 
 const PLUGINS = { 'no-unsanitized': noUnsanitizedPlugin };
@@ -16,68 +16,66 @@ const PLUGINS = { 'no-unsanitized': noUnsanitizedPlugin };
 // AssignmentExpression para .innerHTML), então esse sink é checado à parte,
 // com o mesmo parser Babel usado pelas demais rules hand-rolled do projeto.
 const isDangerouslySetInnerHtmlWithDynamicValue = (node: SourceNode): boolean => {
-  if (node.type !== 'JSXAttribute') {
-    return false;
-  }
-  const name = node.name as SourceNode | undefined;
-  if (name?.type !== 'JSXIdentifier' || name.name !== 'dangerouslySetInnerHTML') {
-    return false;
-  }
-  const value = node.value as SourceNode | undefined;
-  if (value?.type !== 'JSXExpressionContainer') {
-    return false;
-  }
-  const expression = value.expression as SourceNode | undefined;
-  if (expression?.type !== 'ObjectExpression') {
-    return false;
-  }
-  const properties = expression.properties as SourceNode[] | undefined;
-  const htmlProperty = properties?.find((property) => {
-    const key = property.key as SourceNode | undefined;
-    return key?.type === 'Identifier' && key.name === '__html';
-  });
-  const htmlValue = htmlProperty?.value as SourceNode | undefined;
-  return htmlValue !== undefined && htmlValue.type !== 'StringLiteral';
+      if (node.type !== 'JSXAttribute') {
+            return false;
+      }
+      const name = node.name as SourceNode | undefined;
+      if (name?.type !== 'JSXIdentifier' || name.name !== 'dangerouslySetInnerHTML') {
+            return false;
+      }
+      const value = node.value as SourceNode | undefined;
+      if (value?.type !== 'JSXExpressionContainer') {
+            return false;
+      }
+      const expression = value.expression as SourceNode | undefined;
+      if (expression?.type !== 'ObjectExpression') {
+            return false;
+      }
+      const properties = expression.properties as SourceNode[] | undefined;
+      const htmlProperty = properties?.find((property) => {
+            const key = property.key as SourceNode | undefined;
+            return key?.type === 'Identifier' && key.name === '__html';
+      });
+      const htmlValue = htmlProperty?.value as SourceNode | undefined;
+      return htmlValue !== undefined && htmlValue.type !== 'StringLiteral';
 };
 
 const findDangerouslySetInnerHtmlFindings = (filePath: string, content: string): RuleFinding[] => {
-  const findings: RuleFinding[] = [];
-  let sourceFile: SourceNode;
-  try {
-    sourceFile = parseSourceFile(filePath, content);
-  } catch {
-    return findings;
-  }
+      const findings: RuleFinding[] = [];
+      let sourceFile: SourceNode;
+      try {
+            sourceFile = parseSourceFile(filePath, content);
+      } catch {
+            return findings;
+      }
 
-  visitSourceNodes(sourceFile, (node) => {
-    if (isDangerouslySetInnerHtmlWithDynamicValue(node) && node.loc) {
-      findings.push({
-        ruleId: 'dangerously-set-inner-html',
-        message: 'Possível XSS: dangerouslySetInnerHTML com valor não literal (dado não confiável)',
-        file: filePath,
-        line: node.loc.start.line,
-        severity: 'high',
+      visitSourceNodes(sourceFile, (node) => {
+            if (isDangerouslySetInnerHtmlWithDynamicValue(node) && node.loc) {
+                  findings.push({
+                        ruleId: 'dangerously-set-inner-html',
+                        message: 'Possível XSS: dangerouslySetInnerHTML com valor não literal (dado não confiável)',
+                        file: filePath,
+                        line: node.loc.start.line,
+                        severity: 'high',
+                  });
+            }
       });
-    }
-  });
 
-  return findings;
+      return findings;
 };
 
 export const xssRule: Rule = {
-  id: 'xss',
-  description: 'Detecta sinks perigosos de XSS (innerHTML, document.write, dangerouslySetInnerHTML, etc.)',
-  check(filePath: string, content: string): RuleFinding[] {
-    const eslintFindings: RuleFinding[] = runEslintRules(filePath, content, RULES, PLUGINS).map(
-      (finding) => ({
-        ruleId: finding.ruleId,
-        message: `Possível XSS: ${finding.message}`,
-        file: filePath,
-        line: finding.line,
-        severity: 'high',
-      }),
-    );
+      id: 'xss',
+      description: 'Detecta sinks perigosos de XSS (innerHTML, document.write, dangerouslySetInnerHTML, etc.)',
+      check(filePath: string, content: string): RuleFinding[] {
+            const eslintFindings: RuleFinding[] = runEslintRules(filePath, content, RULES, PLUGINS).map((finding) => ({
+                  ruleId: finding.ruleId,
+                  message: `Possível XSS: ${finding.message}`,
+                  file: filePath,
+                  line: finding.line,
+                  severity: 'high',
+            }));
 
-    return [...eslintFindings, ...findDangerouslySetInnerHtmlFindings(filePath, content)];
-  },
+            return [...eslintFindings, ...findDangerouslySetInnerHtmlFindings(filePath, content)];
+      },
 };

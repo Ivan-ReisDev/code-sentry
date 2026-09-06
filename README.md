@@ -1,13 +1,25 @@
 # CodeSentry
 
-CLI de verificação de vulnerabilidades e qualidade de código para
-projetos TypeScript/JavaScript.
+CLI de verificação de vulnerabilidades e qualidade de código. O scanner
+combina regras próprias para JavaScript/TypeScript e o ruleset OWASP do
+Semgrep CE para as linguagens suportadas por ele.
 
 ## Instalação
 
-O projeto ainda não foi publicado no npm. Durante o desenvolvimento,
-use `npm link` para ter o comando `codesentry` disponível globalmente
-apontando para o código local:
+Em uma release publicada, basta uma instalação:
+
+```bash
+npm install -g codesentry
+```
+
+O pacote compatível de Semgrep CE e Python portátil é instalado como
+dependência opcional automaticamente. Não é necessário instalar Python,
+Docker, Semgrep, criar conta ou autenticar em um site.
+
+As plataformas inicialmente suportadas são Linux x64 e Windows x64. Os
+pacotes têm tamanho de dezenas de MB porque incluem o runtime; essa é a troca
+para o scan funcionar offline após a instalação. Durante o desenvolvimento,
+use `npm link`:
 
 ```bash
 git clone <url-do-repositorio>
@@ -31,7 +43,23 @@ vulnerabilidades e problemas de qualidade.
 codesentry scan .
 codesentry scan ./src
 codesentry scan . --json
+codesentry scan . --concurrency 4
+codesentry scan . --config ./rules/security.yml
 ```
+
+O Semgrep CE embutido é executado automaticamente depois das regras nativas,
+usando um snapshot local do ruleset OWASP e `--metrics=off`. O comando não
+consulta a Semgrep Registry, não envia métricas e não requer internet após a
+instalação.
+
+`--concurrency <n>` limita o processamento paralelo do scanner nativo; use
+apenas inteiros positivos. Sem valor, o limite é ajustado para a máquina
+(`min(8, availableParallelism())`). Não há `--config` remoto: atualizações de
+Semgrep e das regras OWASP chegam em novas releases do CodeSentry. Quando
+necessário, `--config` aceita exclusivamente um arquivo YAML local.
+
+Em macOS, ARM e plataformas sem runtime publicado, o comando interrompe
+explicitamente em vez de declarar uma análise parcial como completa.
 
 ### `codesentry rules`
 

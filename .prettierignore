@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.next/
+packages/*/runtime/
+codesentry-report-*.md
+package-lock.json
