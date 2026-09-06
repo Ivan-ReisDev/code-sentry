@@ -75,25 +75,30 @@ const walkIfChain = (node: SourceNode, depth: number, results: DeepNestingFindin
   walkIfAlternate(node.alternate, depth, results);
 };
 
-const walk = (node: SourceNode, depth: number, results: DeepNestingFinding[]): void => {
-  if (FUNCTION_TYPES.has(node.type)) {
-    walkChildren(node, 0, results);
-    return;
-  }
+type NodeWalker = (node: SourceNode, depth: number, results: DeepNestingFinding[]) => void;
 
-  if (node.type === 'IfStatement') {
-    walkIfChain(node, depth, results);
-    return;
-  }
+const walkFunction: NodeWalker = (node, _depth, results) => {
+  walkChildren(node, 0, results);
+};
 
-  if (NESTING_TYPES.has(node.type)) {
-    const newDepth = depth + 1;
-    checkDepth(newDepth, node.loc?.start.line, results);
-    walkChildren(node, newDepth, results);
-    return;
-  }
+const walkNestingBlock: NodeWalker = (node, depth, results) => {
+  const newDepth = depth + 1;
+  checkDepth(newDepth, node.loc?.start.line, results);
+  walkChildren(node, newDepth, results);
+};
 
-  walkChildren(node, depth, results);
+const selectWalker = (node: SourceNode): NodeWalker => {
+  return FUNCTION_TYPES.has(node.type)
+    ? walkFunction
+    : node.type === 'IfStatement'
+      ? walkIfChain
+      : NESTING_TYPES.has(node.type)
+        ? walkNestingBlock
+        : walkChildren;
+};
+
+const walk: NodeWalker = (node, depth, results) => {
+  selectWalker(node)(node, depth, results);
 };
 
 const findDeepNesting = (filePath: string, content: string): DeepNestingFinding[] => {
