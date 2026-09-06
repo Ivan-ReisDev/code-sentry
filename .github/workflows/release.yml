@@ -39,8 +39,20 @@ jobs:
                   - run: npm ci --ignore-scripts
                   # Rede só é usada na preparação da release; o arquivo publicado é local e fixado.
                   - run: npm run prepare:owasp-rules
+                  - name: Check if this version is already published
+                    id: check
+                    run: |
+                          NAME=$(node -p "require('./packages/semgrep-rules/package.json').name")
+                          VERSION=$(node -p "require('./packages/semgrep-rules/package.json').version")
+                          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+                                echo "skip=true" >> "$GITHUB_OUTPUT"
+                          else
+                                echo "skip=false" >> "$GITHUB_OUTPUT"
+                          fi
                   - run: npm pkg delete private --prefix packages/semgrep-rules
+                    if: steps.check.outputs.skip == 'false'
                   - run: npm publish ./packages/semgrep-rules --access public
+                    if: steps.check.outputs.skip == 'false'
                     env:
                           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -52,10 +64,10 @@ jobs:
                         include:
                               - os: ubuntu-latest
                                 package: packages/semgrep-linux-x64
-                                python: runtime/python/bin/python3
+                                semgrep_binary: semgrep
                               - os: windows-latest
                                 package: packages/semgrep-win32-x64
-                                python: runtime/python/python.exe
+                                semgrep_binary: semgrep.exe
             runs-on: ${{ matrix.os }}
             steps:
                   - uses: actions/checkout@v4
@@ -69,10 +81,26 @@ jobs:
                     run: |
                           uv python install "$PYTHON_VERSION"
                           PYTHON_BIN="$(uv python find "$PYTHON_VERSION")"
-                          PYTHON_ROOT="$(dirname "$(dirname "$PYTHON_BIN")")"
+                          PYTHON_DIR="$(uv python dir)"
+                          # A instalação do uv aninha o executável em profundidades diferentes por
+                          # plataforma (ex.: bin/python3.12 no Linux, install/python.exe no Windows).
+                          # Em vez de fixar o caminho, descobrimos o nome da pasta raiz da instalação
+                          # e o caminho do executável dentro dela, ambos dinamicamente.
+                          RELATIVE="${PYTHON_BIN#"$PYTHON_DIR"/}"
+                          INSTALL_NAME="${RELATIVE%%/*}"
+                          PYTHON_ROOT="$PYTHON_DIR/$INSTALL_NAME"
+                          EXE_RELATIVE="${PYTHON_BIN#"$PYTHON_ROOT"/}"
                           mkdir -p "${{ matrix.package }}/runtime"
                           cp -a "$PYTHON_ROOT" "${{ matrix.package }}/runtime/python"
-                          "${{ matrix.package }}/${{ matrix.python }}" -m pip install --no-cache-dir --break-system-packages "semgrep==$SEMGREP_VERSION"
+                          COPIED_PYTHON="${{ matrix.package }}/runtime/python/$EXE_RELATIVE"
+                          "$COPIED_PYTHON" -m pip install --no-cache-dir --break-system-packages "semgrep==$SEMGREP_VERSION"
+                          SEMGREP_PATH="$(find "${{ matrix.package }}/runtime/python" -iname "${{ matrix.semgrep_binary }}" -type f | head -n1)"
+                          if [ -z "$SEMGREP_PATH" ]; then
+                                echo "Não foi possível localizar o executável semgrep instalado." >&2
+                                exit 1
+                          fi
+                          SEMGREP_RELATIVE="${SEMGREP_PATH#"${{ matrix.package }}"/}"
+                          node scripts/write-runtime-manifest.mjs "${{ matrix.package }}" "$SEMGREP_RELATIVE"
                           node scripts/write-runtime-lock.mjs "${{ matrix.package }}"
                   - name: Prepare fixed offline OWASP snapshot
                     run: npm run prepare:owasp-rules
@@ -82,8 +110,21 @@ jobs:
                           npm install --no-save "./${{ matrix.package }}"
                           npm run build
                           node dist/index.js scan tests/fixtures/semgrep-multilang --json
+                  - name: Check if this version is already published
+                    id: check
+                    shell: bash
+                    run: |
+                          NAME=$(node -p "require('./${{ matrix.package }}/package.json').name")
+                          VERSION=$(node -p "require('./${{ matrix.package }}/package.json').version")
+                          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+                                echo "skip=true" >> "$GITHUB_OUTPUT"
+                          else
+                                echo "skip=false" >> "$GITHUB_OUTPUT"
+                          fi
                   - run: npm pkg delete private --prefix ${{ matrix.package }}
+                    if: steps.check.outputs.skip == 'false'
                   - run: npm publish ./${{ matrix.package }} --access public
+                    if: steps.check.outputs.skip == 'false'
                     env:
                           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -98,7 +139,19 @@ jobs:
                           registry-url: https://registry.npmjs.org
                   - run: npm ci
                   - run: npm run build
+                  - name: Check if this version is already published
+                    id: check
+                    run: |
+                          NAME=$(node -p "require('./package.json').name")
+                          VERSION=$(node -p "require('./package.json').version")
+                          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+                                echo "skip=true" >> "$GITHUB_OUTPUT"
+                          else
+                                echo "skip=false" >> "$GITHUB_OUTPUT"
+                          fi
                   - run: npm pkg delete private
+                    if: steps.check.outputs.skip == 'false'
                   - run: npm publish --access public
+                    if: steps.check.outputs.skip == 'false'
                     env:
                           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
