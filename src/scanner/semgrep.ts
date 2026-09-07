@@ -75,6 +75,16 @@ const semgrepArgs = (ruleset: string, includeTests: boolean): string[] => [
       '.',
 ];
 
+// O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
+// em vez de por caminho absoluto — o diretório do runtime precisa vir na frente do PATH
+// para que esse auxiliar (instalado ao lado do executável semgrep) seja encontrado. E o
+// launcher .exe do Windows resolve seu próprio interpretador via "#!python.exe" (também
+// por PATH), mas python.exe fica um nível ACIMA de Scripts/ nesse layout — sem o diretório
+// pai também no PATH, ele acaba achando outro python.exe qualquer, sem semgrep instalado.
+// Também acrescentamos as pastas padrão do sistema como fallback: o Semgrep chama
+// ferramentas do sistema (ex.: git, para decidir quais arquivos escanear) por nome, e
+// processos pai como "npx" substituem o PATH herdado só por diretórios node_modules/.bin,
+// derrubando /usr/bin e /bin — sem erro, o Semgrep simplesmente escaneia zero arquivos.
 const semgrepEnvironment = (runtime: BundledSemgrepRuntime): NodeJS.ProcessEnv => {
       const semgrepDir = dirname(runtime.semgrep);
       const systemPathFallback =
@@ -116,16 +126,6 @@ export const runBundledSemgrep = async (
       includeTests = false,
 ): Promise<ScanResult> => {
       const startedAt = Date.now();
-      // O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
-      // em vez de por caminho absoluto — o diretório do runtime precisa vir na frente do PATH
-      // para que esse auxiliar (instalado ao lado do executável semgrep) seja encontrado. E o
-      // launcher .exe do Windows resolve seu próprio interpretador via "#!python.exe" (também
-      // por PATH), mas python.exe fica um nível ACIMA de Scripts/ nesse layout — sem o diretório
-      // pai também no PATH, ele acaba achando outro python.exe qualquer, sem semgrep instalado.
-      // Também acrescentamos as pastas padrão do sistema como fallback: o Semgrep chama
-      // ferramentas do sistema (ex.: git, para decidir quais arquivos escanear) por nome, e
-      // processos pai como "npx" substituem o PATH herdado só por diretórios node_modules/.bin,
-      // derrubando /usr/bin e /bin — sem erro, o Semgrep simplesmente escaneia zero arquivos.
       try {
             const report = parseSemgrepReport(await executeSemgrep(targetDir, runtime, ruleset, execute, includeTests));
             const scannedFiles = report.paths?.scanned.length ?? 0;
