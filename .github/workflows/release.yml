@@ -126,15 +126,15 @@ jobs:
                           fi
                           echo "SEMGREP_PATH=$SEMGREP_PATH"
                           # Os console_scripts do pip gravam o caminho absoluto do Python usado na
-                          # instalação como shebang — em texto puro no Linux ("#!/home/runner/work/
-                          # .../python3.12\n" seguido do script) e embutido do mesmo jeito no início
-                          # dos launchers .exe no Windows ("#!D:\a\...\python.exe\r\n" seguido do
-                          # payload binário). Esse caminho nunca existe na máquina de quem instala o
-                          # pacote publicado. Reescrevemos só a primeira linha, preservando o resto
-                          # dos bytes, para a forma portátil que cada launcher resolve via PATH em
-                          # tempo de execução: "#!/usr/bin/env python3" no Linux, "#!python.exe" no
-                          # Windows (PEP 397). O runBundledSemgrep já coloca o diretório do runtime
-                          # na frente do PATH do processo para essa busca funcionar.
+                          # instalação — em texto puro no Linux (primeira linha do script) e, no
+                          # Windows, num buffer de tamanho fixo dentro do binário PE do launcher
+                          # .exe, logo antes do ZIP anexado que carrega o script de verdade (ver
+                          # scripts/rewrite-shebang.py para os detalhes do formato). Esse caminho
+                          # nunca existe na máquina de quem instala o pacote publicado. Reescrevemos
+                          # para a forma portátil que cada launcher resolve via PATH em tempo de
+                          # execução: "#!/usr/bin/env python3" no Linux, "#!python.exe" no Windows
+                          # (PEP 397). O runBundledSemgrep já coloca o diretório do runtime na
+                          # frente do PATH do processo para essa busca funcionar.
                           NEW_SHEBANG="${{ matrix.os == 'windows-latest' && '#!python.exe' || '#!/usr/bin/env python3' }}"
                           BIN_DIR="$(dirname "$SEMGREP_PATH")"
                           for script in "$BIN_DIR"/*; do
