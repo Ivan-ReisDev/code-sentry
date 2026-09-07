@@ -143,6 +143,23 @@ it('puts the runtime\'s own directory first on PATH, since Semgrep execs a "pyse
       expect(receivedEnv?.PATH?.split(delimiter)[0]).toBe('/runtime/bin');
 });
 
+it("also puts the runtime's parent directory on PATH, in case the interpreter lives one level up", async () => {
+      let receivedEnv: NodeJS.ProcessEnv | undefined;
+      const execute = (_file: string, _args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+            receivedEnv = options.env;
+            return Promise.resolve({ stdout: JSON.stringify({ results: [], paths: { scanned: [] } }) });
+      };
+
+      // Windows layout: runtime/python/python.exe alongside runtime/python/Scripts/{semgrep,pysemgrep}.exe.
+      // "#!python.exe" in the launcher only finds it if this parent directory is on PATH too — otherwise
+      // it silently picks up some *other* python.exe from the rest of PATH, one without semgrep installed.
+      await runBundledSemgrep('.', { semgrep: '/runtime/python/Scripts/semgrep' }, '/local/owasp.yml', execute);
+
+      const segments = receivedEnv?.PATH?.split(delimiter) ?? [];
+      expect(segments).toContain('/runtime/python/Scripts');
+      expect(segments).toContain('/runtime/python');
+});
+
 it('falls back to standard system directories on PATH, in case the parent process stripped them', async () => {
       // Reproduces what "npx codesentry" does: it replaces PATH with only
       // node_modules/.bin entries, dropping /usr/bin and /bin. Semgrep shells
