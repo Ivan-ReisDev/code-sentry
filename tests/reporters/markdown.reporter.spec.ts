@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { toMarkdownReport } from '../../src/reporters/markdown.reporter.js';
 import type { RuleFinding } from '../../src/rules/rule.interface.js';
+import { DEPENDENCY_AUDIT_NOTE, ZERO_SEMGREP_COVERAGE_WARNING } from '../../src/scanner/scan-result.js';
 
 const finding = (overrides: Partial<RuleFinding> = {}): RuleFinding => ({
       ruleId: 'no-eval',
@@ -111,4 +112,29 @@ it('returns a report with all-zero summary and no severity sections when there a
       expect(md).toContain('**Total de problemas:** 0');
       expect(md).toContain('| Critical | 0 |');
       expect(md).not.toMatch(/^## (Critical|High|Medium|Low)/m);
+});
+
+it('includes the dependency-audit note in the header when dependencyAudit is false', () => {
+      const md = toMarkdownReport(
+            { scannedFiles: 2, durationMs: 1, findings: [], engines: { codesentry: 2, dependencyAudit: false } },
+            fixedDate,
+      );
+
+      expect(md).toContain(DEPENDENCY_AUDIT_NOTE);
+});
+
+it('includes a warnings section when the result carries warnings', () => {
+      const md = toMarkdownReport(
+            {
+                  scannedFiles: 2,
+                  durationMs: 1,
+                  findings: [],
+                  engines: { codesentry: 2, semgrep: 0 },
+                  warnings: [ZERO_SEMGREP_COVERAGE_WARNING],
+            },
+            fixedDate,
+      );
+
+      expect(md).toContain('## Avisos');
+      expect(md).toContain(ZERO_SEMGREP_COVERAGE_WARNING);
 });

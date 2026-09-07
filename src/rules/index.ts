@@ -5,6 +5,7 @@ import { deepNestingRule } from './deep-nesting.rule.js';
 import { emptyCatchRule } from './empty-catch.rule.js';
 import { expressMissingBodyLimitRule } from './express-missing-body-limit.rule.js';
 import { floatingPromiseRule } from './floating-promise.rule.js';
+import { hardcodedAuthorizationValueRule } from './hardcoded-authorization-value.rule.js';
 import { highComplexityRule } from './high-complexity.rule.js';
 import { insecureRandomTokenRule } from './insecure-random-token.rule.js';
 import { jwtDecodeWithoutVerifyRule } from './jwt-decode-without-verify.rule.js';
@@ -25,6 +26,7 @@ import { tooManySwitchCasesRule } from './too-many-switch-cases.rule.js';
 import { tooManyTryCatchRule } from './too-many-try-catch.rule.js';
 import { tooManyWhileLoopsRule } from './too-many-while-loops.rule.js';
 import { unsafeSqlRule } from './unsafe-sql.rule.js';
+import { weakCipherModeRule } from './weak-cipher-mode.rule.js';
 import { weakHashAlgorithmRule } from './weak-hash-algorithm.rule.js';
 import { weakSecretFallbackRule } from './weak-secret-fallback.rule.js';
 import { xssRule } from './xss.rule.js';
@@ -61,4 +63,6 @@ export const allRules: Rule[] = [
       xxeUnsafeXmlParsingRule,
       sensitiveDataInLogsRule,
       publicEnvVarSecretRule,
+      weakCipherModeRule,
+      hardcodedAuthorizationValueRule,
 ];

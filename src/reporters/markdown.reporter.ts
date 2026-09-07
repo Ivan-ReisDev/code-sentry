@@ -1,5 +1,5 @@
 import type { RuleFinding, Severity } from '../rules/rule.interface.js';
-import type { ScanResult } from '../scanner/scan-result.js';
+import { DEPENDENCY_AUDIT_NOTE, type ScanResult } from '../scanner/scan-result.js';
 
 const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
 const SEVERITY_LABEL = new Map<Severity, string>([
@@ -55,8 +55,14 @@ const reportHeader = (result: ScanResult, generatedAt: Date): string[] => [
               ]),
       `- **Duração:** ${result.durationMs}ms`,
       `- **Total de problemas:** ${result.findings.length}`,
+      ...(result.engines?.dependencyAudit === false ? [`- **Nota:** ${DEPENDENCY_AUDIT_NOTE}`] : []),
       '',
 ];
+
+const warningsSection = (result: ScanResult): string[] =>
+      (result.warnings ?? []).length === 0
+            ? []
+            : ['## Avisos', '', ...(result.warnings ?? []).map((warning) => `- ${warning}`), ''];
 
 const summaryTable = (bySeverity: Map<string, RuleFinding[]>): string[] => {
       const lines = ['## Resumo por severidade', '', '| Severidade | Quantidade |', '| --- | --- |'];
@@ -80,7 +86,10 @@ const severitySections = (bySeverity: Map<string, RuleFinding[]>): string[] => {
 
 export const toMarkdownReport = (result: ScanResult, generatedAt: Date = new Date()): string => {
       const bySeverity = groupBy(result.findings, (f) => f.severity);
-      return [...reportHeader(result, generatedAt), ...summaryTable(bySeverity), ...severitySections(bySeverity)].join(
-            '\n',
-      );
+      return [
+            ...reportHeader(result, generatedAt),
+            ...warningsSection(result),
+            ...summaryTable(bySeverity),
+            ...severitySections(bySeverity),
+      ].join('\n');
 };

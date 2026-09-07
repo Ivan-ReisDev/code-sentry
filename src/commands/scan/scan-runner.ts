@@ -7,7 +7,7 @@ import { printConsoleReport } from '../../reporters/console.reporter.js';
 import { toJsonReport } from '../../reporters/json.reporter.js';
 import { toMarkdownReport } from '../../reporters/markdown.reporter.js';
 import type { Rule } from '../../rules/rule.interface.js';
-import { mergeScanResults, type ScanResult } from '../../scanner/scan-result.js';
+import { finalizeScanResult, mergeScanResults, type ScanResult } from '../../scanner/scan-result.js';
 import { runScan } from '../../scanner/scanner.js';
 import { runBundledSemgrep } from '../../scanner/semgrep.js';
 import { generateMarkdownReportFilename, MARKDOWN_REPORT_FINDINGS_THRESHOLD } from './report-filename.js';
@@ -56,10 +56,10 @@ const runScanEngines = async (path: string, rules: Rule[], options: ScanOutputOp
             const includeTests = options.tests ?? false;
             const nativeResult = await runScan(path, rules, options.concurrency, includeTests);
             if (!options.semgrep) {
-                  return nativeResult;
+                  return finalizeScanResult(nativeResult);
             }
             const semgrepResult = await runBundledSemgrep(path, undefined, options.config, undefined, includeTests);
-            return mergeScanResults(nativeResult, semgrepResult);
+            return finalizeScanResult(mergeScanResults(nativeResult, semgrepResult));
       } catch (error) {
             throw new Error(`Falha durante a análise: ${errorMessage(error)}`, { cause: error });
       }

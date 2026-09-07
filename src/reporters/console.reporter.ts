@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import type { Severity } from '../rules/rule.interface.js';
-import type { ScanResult } from '../scanner/scan-result.js';
+import { DEPENDENCY_AUDIT_NOTE, type ScanResult } from '../scanner/scan-result.js';
 
 const SEVERITY_COLOR: Record<Severity, (text: string) => string> = {
       low: (text) => chalk.gray(text),
@@ -15,8 +15,18 @@ const coverageText = (result: ScanResult): string =>
             ? ''
             : ` CodeSentry: ${result.engines.codesentry ?? result.scannedFiles} JS/TS; Semgrep: ${result.engines.semgrep} arquivo(s).`;
 
+const printNotes = (result: ScanResult): void => {
+      if (result.engines?.dependencyAudit === false) {
+            console.log(chalk.cyan(DEPENDENCY_AUDIT_NOTE));
+      }
+      for (const warning of result.warnings ?? []) {
+            console.log(chalk.yellow(`Aviso: ${warning}`));
+      }
+};
+
 const printCleanReport = (result: ScanResult, coverage: string): void => {
       console.log(chalk.green(`Nenhum problema encontrado (${result.scannedFiles} arquivos analisados).${coverage}`));
+      printNotes(result);
 };
 
 const findingsTable = (result: ScanResult) => {
@@ -41,6 +51,7 @@ const printFindingsReport = (result: ScanResult, coverage: string): void => {
                   `\n${result.findings.length} problema(s) encontrado(s) em ${result.scannedFiles} arquivo(s) (${result.durationMs}ms).${coverage}`,
             ),
       );
+      printNotes(result);
 };
 
 export const printConsoleReport = (result: ScanResult): void => {

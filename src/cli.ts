@@ -8,6 +8,7 @@ import { registerDeepNestingCommand } from './commands/deep-nesting/deep-nesting
 import { registerDependencyAuditCommand } from './commands/dependency-audit/dependency-audit.command.js';
 import { registerEmptyCatchCommand } from './commands/empty-catch/empty-catch.command.js';
 import { registerExpressMissingBodyLimitCommand } from './commands/express-missing-body-limit/express-missing-body-limit.command.js';
+import { registerHardcodedAuthorizationValueCommand } from './commands/hardcoded-authorization-value/hardcoded-authorization-value.command.js';
 import { registerHelpCommand } from './commands/help/help.command.js';
 import { registerHighComplexityCommand } from './commands/high-complexity/high-complexity.command.js';
 import { registerInitCommand } from './commands/init/init.command.js';
@@ -32,6 +33,7 @@ import { registerTooManyTryCatchCommand } from './commands/too-many-try-catch/to
 import { registerTooManyWhileLoopsCommand } from './commands/too-many-while-loops/too-many-while-loops.command.js';
 import { registerUnhandledPromisesCommand } from './commands/unhandled-promises/unhandled-promises.command.js';
 import { registerUnsafeSqlCommand } from './commands/unsafe-sql/unsafe-sql.command.js';
+import { registerWeakCipherModeCommand } from './commands/weak-cipher-mode/weak-cipher-mode.command.js';
 import { registerWeakHashAlgorithmCommand } from './commands/weak-hash-algorithm/weak-hash-algorithm.command.js';
 import { registerWeakSecretFallbackCommand } from './commands/weak-secret-fallback/weak-secret-fallback.command.js';
 import { registerXssCommand } from './commands/xss/xss.command.js';
@@ -85,6 +87,8 @@ const registerSecurityCommands = (program: Command): void => {
       registerXxeUnsafeXmlParsingCommand(program);
       registerSensitiveDataInLogsCommand(program);
       registerPublicEnvVarSecretCommand(program);
+      registerWeakCipherModeCommand(program);
+      registerHardcodedAuthorizationValueCommand(program);
 };
 
 const require = createRequire(import.meta.url);

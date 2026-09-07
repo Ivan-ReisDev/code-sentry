@@ -24,3 +24,12 @@ it('registers --tests on every scan/rule command, except commands that never rea
 
       expect(commandsMissingTestsOption).toEqual([]);
 });
+
+it('registers standalone commands for weak-cipher-mode and hardcoded-authorization-value', () => {
+      const program = createCli();
+
+      const commandNames = program.commands.map((command) => command.name());
+
+      expect(commandNames).toContain('weak-cipher-mode');
+      expect(commandNames).toContain('hardcoded-authorization-value');
+});
