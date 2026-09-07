@@ -1,6 +1,6 @@
 {
       "name": "codesentry-semgrep-win32-x64",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "private": true,
       "license": "MIT",
       "description": "Runtime Semgrep CE embutido do CodeSentry para Windows x64",

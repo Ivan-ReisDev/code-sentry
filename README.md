@@ -8,6 +8,12 @@ CLI de verificação de vulnerabilidades e qualidade de código. O scanner
 combina regras próprias para JavaScript/TypeScript e o ruleset OWASP do
 Semgrep CE para as linguagens suportadas por ele.
 
+- 🔎 **Dois motores num só comando** — regras próprias em TS/JS + Semgrep CE (OWASP Top 10) para dezenas de outras linguagens.
+- 📦 **Uma instalação, zero fricção** — `npm install -g codesentry` e pronto: sem Python, Docker, Semgrep ou conta em lugar nenhum.
+- 🔌 **100% offline depois de instalado** — nunca consulta a Semgrep Registry nem envia métricas.
+- 🪟🐧 **Windows e Linux nativamente** — sem WSL, sem container.
+- 📊 **Console, JSON ou Markdown** — saída pronta tanto para ler no terminal quanto para plugar em CI.
+
 ## O que o CodeSentry faz
 
 Rodando `codesentry scan` num projeto, dois motores de análise trabalham
@@ -28,6 +34,22 @@ Cada achado no relatório mostra o arquivo, a linha, a severidade e qual
 motor encontrou o problema (prefixo `semgrep/` para achados do Semgrep).
 Saídas disponíveis: tabela no console, JSON (`--json`) e, quando há mais
 de 20 problemas, um relatório Markdown detalhado é gerado automaticamente.
+
+Exemplo de saída no console:
+
+```text
+❯ codesentry scan .
+✔ Scanning files...
+┌──────────┬──────────────────────┬─────────────────┬──────┬──────────────────────────────────────────┐
+│ Severity │ Rule                 │ File             │ Line │ Message                                    │
+├──────────┼──────────────────────┼─────────────────┼──────┼──────────────────────────────────────────┤
+│ high     │ no-hardcoded-secret  │ src/config.ts    │ 12   │ Possível segredo hardcoded na variável...  │
+│ high     │ semgrep/...shell-true│ scripts/run.py   │ 8    │ subprocess com shell=True é perigoso...    │
+│ medium   │ jwt-no-expiration    │ src/auth.ts      │ 34   │ Token JWT assinado sem "expiresIn"...      │
+└──────────┴──────────────────────┴─────────────────┴──────┴──────────────────────────────────────────┘
+
+3 problema(s) encontrado(s) em 87 arquivo(s) (4213ms). CodeSentry: 87 JS/TS; Semgrep: 64 arquivo(s).
+```
 
 ## Como funciona por baixo dos panos
 
