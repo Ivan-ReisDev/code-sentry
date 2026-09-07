@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Logo do CodeSentry" width="640">
+</p>
+
 # CodeSentry
 
 CLI de verificação de vulnerabilidades e qualidade de código. O scanner
@@ -132,30 +136,46 @@ explicitamente em vez de declarar uma análise parcial como completa.
 
 ### `codesentry rules`
 
-Lista as regras de análise disponíveis.
+Lista as regras de análise disponíveis (id e descrição de cada uma).
 
 ```bash
 codesentry rules
 ```
 
-### `codesentry long-functions [path]`
-
-Analisa um diretório (padrão: diretório atual) em busca apenas de
-funções com mais de 30 linhas (severidade `low`). Essa mesma regra
-também roda automaticamente como parte do `codesentry scan`.
-
-```bash
-codesentry long-functions .
-codesentry long-functions ./src --json
-```
-
 ### `codesentry help`
 
-Lista os comandos disponíveis.
+Lista **todos** os comandos disponíveis, sempre atualizada — inclui tanto
+os comandos gerais quanto os individuais listados a seguir.
 
 ```bash
 codesentry help
 ```
+
+### Comandos individuais por regra
+
+Cada regra nativa também tem um comando próprio, que roda **só ela** sobre
+um diretório — útil para focar em um tipo de problema específico sem esperar
+o scan completo (e sem o Semgrep, que só roda como parte de `scan`). Todos
+seguem o mesmo formato:
+
+```bash
+codesentry <comando> [path] [--json]
+```
+
+Alguns exemplos:
+
+```bash
+codesentry long-functions .          # funções com mais de 30 linhas
+codesentry no-eval ./src             # uso de eval()
+codesentry xss ./src --json          # possíveis XSS (innerHTML, document.write, dangerouslySetInnerHTML)
+codesentry unsafe-sql ./src          # SQL injection por concatenação
+codesentry command-injection ./src   # child_process com entrada não sanitizada
+codesentry weak-hash-algorithm ./src # uso de MD5/SHA-1 para hashing sensível
+codesentry dependency-audit .        # `npm audit` das dependências do projeto
+```
+
+A lista completa (30+ comandos, um por regra) sai de `codesentry help` —
+mantê-la sempre em sincronia aqui manualmente não seria viável.
 
 ### `codesentry init`
 
