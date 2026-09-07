@@ -88,9 +88,15 @@ export const runBundledSemgrep = async (
       // O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
       // em vez de por caminho absoluto — o diretório do runtime precisa vir na frente do PATH
       // para que esse auxiliar (instalado ao lado do executável semgrep) seja encontrado.
+      // Também acrescentamos as pastas padrão do sistema como fallback: o Semgrep chama
+      // ferramentas do sistema (ex.: git, para decidir quais arquivos escanear) por nome, e
+      // processos pai como "npx" substituem o PATH herdado só por diretórios node_modules/.bin,
+      // derrubando /usr/bin e /bin — sem erro, o Semgrep simplesmente escaneia zero arquivos.
+      const SYSTEM_PATH_FALLBACK =
+            process.platform === 'win32' ? 'C:\\Windows\\System32;C:\\Windows' : '/usr/local/bin:/usr/bin:/bin';
       const env = {
             ...process.env,
-            PATH: `${dirname(runtime.semgrep)}${delimiter}${process.env.PATH ?? ''}`,
+            PATH: `${dirname(runtime.semgrep)}${delimiter}${process.env.PATH ?? ''}${delimiter}${SYSTEM_PATH_FALLBACK}`,
       };
 
       try {

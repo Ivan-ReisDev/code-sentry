@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { Command } from 'commander';
 import figlet from 'figlet';
 import gradient from 'gradient-string';
@@ -85,13 +87,21 @@ const registerSecurityCommands = (program: Command): void => {
       registerPublicEnvVarSecretCommand(program);
 };
 
+const require = createRequire(import.meta.url);
+
+const readPackageVersion = (): string => {
+      const packageJsonPath = require.resolve('../package.json');
+      const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
+      return version;
+};
+
 export const createCli = (): Command => {
       printBanner();
 
       const program = new Command()
             .name('codesentry')
             .description('CLI de verificação de vulnerabilidades e qualidade de código')
-            .version('0.1.0')
+            .version(readPackageVersion())
             .helpCommand(false);
 
       registerInitCommand(program);

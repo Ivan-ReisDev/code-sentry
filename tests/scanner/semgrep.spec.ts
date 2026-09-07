@@ -142,3 +142,28 @@ it('puts the runtime\'s own directory first on PATH, since Semgrep execs a "pyse
 
       expect(receivedEnv?.PATH?.split(delimiter)[0]).toBe('/runtime/bin');
 });
+
+it('falls back to standard system directories on PATH, in case the parent process stripped them', async () => {
+      // Reproduces what "npx codesentry" does: it replaces PATH with only
+      // node_modules/.bin entries, dropping /usr/bin and /bin. Semgrep shells
+      // out to system tools like git internally, and silently reports zero
+      // scanned files (no error) when it can't find them.
+      const originalPath = process.env.PATH;
+      process.env.PATH = '/home/user/project/node_modules/.bin';
+      let receivedEnv: NodeJS.ProcessEnv | undefined;
+      const execute = (_file: string, _args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+            receivedEnv = options.env;
+            return Promise.resolve({ stdout: JSON.stringify({ results: [], paths: { scanned: [] } }) });
+      };
+
+      try {
+            await runBundledSemgrep('.', { semgrep: '/runtime/bin/semgrep' }, '/local/owasp.yml', execute);
+      } finally {
+            process.env.PATH = originalPath;
+      }
+
+      const segments = receivedEnv?.PATH?.split(delimiter) ?? [];
+      expect(segments).toContain('/usr/local/bin');
+      expect(segments).toContain('/usr/bin');
+      expect(segments).toContain('/bin');
+});
