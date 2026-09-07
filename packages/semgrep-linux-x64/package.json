@@ -1,6 +1,6 @@
 {
       "name": "codesentry-semgrep-linux-x64",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "private": true,
       "license": "MIT",
       "description": "Runtime Semgrep CE embutido do CodeSentry para Linux x64",

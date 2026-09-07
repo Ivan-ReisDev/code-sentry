@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
 import { Listr } from 'listr2';
+import { formatErrorChain } from '../../errors.js';
 import { printConsoleReport } from '../../reporters/console.reporter.js';
 import { toJsonReport } from '../../reporters/json.reporter.js';
 import { toMarkdownReport } from '../../reporters/markdown.reporter.js';
@@ -23,7 +24,7 @@ const errorMessage = (error: unknown): string => (error instanceof Error ? error
 
 const reportScanFailure = (error: unknown): void => {
       process.exitCode = 1;
-      console.error(`Falha ao executar o scan: ${errorMessage(error)}`);
+      console.error(`Falha ao executar o scan: ${formatErrorChain(error)}`);
 };
 
 const printResult = (result: ScanResult, options: ScanOutputOptions): void => {

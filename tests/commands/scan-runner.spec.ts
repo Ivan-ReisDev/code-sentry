@@ -55,3 +55,12 @@ it('logs the path of the generated report', async () => {
 
       expect(logSpy.mock.calls.flat().join('\n')).toContain('Relatório detalhado gerado em');
 });
+
+it('surfaces the root cause of a scan failure instead of only a generic wrapper message', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await scanAndReport('/this/path/does/not/exist/at/all', [], 'test', {});
+
+      const loggedError = errorSpy.mock.calls.flat().join('\n');
+      expect(loggedError).toContain('ENOENT');
+});
