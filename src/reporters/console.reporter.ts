@@ -10,22 +10,17 @@ const SEVERITY_COLOR: Record<Severity, (text: string) => string> = {
       critical: (text) => chalk.bgRed.white(text),
 };
 
-export const printConsoleReport = (result: ScanResult): void => {
-      const coverage =
-            result.engines?.semgrep === undefined
-                  ? ''
-                  : ` CodeSentry: ${result.engines.codesentry ?? result.scannedFiles} JS/TS; Semgrep: ${result.engines.semgrep} arquivo(s).`;
-      if (result.findings.length === 0) {
-            console.log(
-                  chalk.green(`Nenhum problema encontrado (${result.scannedFiles} arquivos analisados).${coverage}`),
-            );
-            return;
-      }
+const coverageText = (result: ScanResult): string =>
+      result.engines?.semgrep === undefined
+            ? ''
+            : ` CodeSentry: ${result.engines.codesentry ?? result.scannedFiles} JS/TS; Semgrep: ${result.engines.semgrep} arquivo(s).`;
 
-      const table = new Table({
-            head: ['Severity', 'Rule', 'File', 'Line', 'Message'],
-      });
+const printCleanReport = (result: ScanResult, coverage: string): void => {
+      console.log(chalk.green(`Nenhum problema encontrado (${result.scannedFiles} arquivos analisados).${coverage}`));
+};
 
+const findingsTable = (result: ScanResult) => {
+      const table = new Table({ head: ['Severity', 'Rule', 'File', 'Line', 'Message'] });
       for (const finding of result.findings) {
             const colorize = SEVERITY_COLOR[finding.severity];
             table.push([
@@ -36,11 +31,23 @@ export const printConsoleReport = (result: ScanResult): void => {
                   finding.message,
             ]);
       }
+      return table;
+};
 
-      console.log(table.toString());
+const printFindingsReport = (result: ScanResult, coverage: string): void => {
+      console.log(findingsTable(result).toString());
       console.log(
             chalk.bold(
                   `\n${result.findings.length} problema(s) encontrado(s) em ${result.scannedFiles} arquivo(s) (${result.durationMs}ms).${coverage}`,
             ),
       );
+};
+
+export const printConsoleReport = (result: ScanResult): void => {
+      const coverage = coverageText(result);
+      if (result.findings.length === 0) {
+            printCleanReport(result, coverage);
+            return;
+      }
+      printFindingsReport(result, coverage);
 };

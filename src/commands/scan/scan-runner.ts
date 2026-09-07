@@ -42,10 +42,24 @@ const writeMarkdownReportIfNeeded = async (result: ScanResult, targetDir: string
 
       const filePath = join(targetDir, generateMarkdownReportFilename());
       try {
+            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- the report name is generated locally.
             await writeFile(filePath, toMarkdownReport(result), 'utf-8');
             console.log(chalk.cyan(`\nRelatório detalhado gerado em: ${filePath}`));
       } catch (error) {
             console.error(chalk.red(`Não foi possível gerar o relatório Markdown: ${errorMessage(error)}`));
+      }
+};
+
+const runScanEngines = async (path: string, rules: Rule[], options: ScanOutputOptions): Promise<ScanResult> => {
+      try {
+            const nativeResult = await runScan(path, rules, options.concurrency);
+            if (!options.semgrep) {
+                  return nativeResult;
+            }
+            const semgrepResult = await runBundledSemgrep(path, undefined, options.config);
+            return mergeScanResults(nativeResult, semgrepResult);
+      } catch (error) {
+            throw new Error(`Falha durante a análise: ${errorMessage(error)}`, { cause: error });
       }
 };
 
@@ -59,22 +73,13 @@ const createScanTasks = (
       new Listr([
             {
                   title: taskTitle,
-                  task: () =>
-                        runScan(path, rules, options.concurrency)
-                              .then((nativeResult) => {
-                                    if (!options.semgrep) {
-                                          onResult(nativeResult);
-                                          return undefined;
-                                    }
-                                    return runBundledSemgrep(path, undefined, options.config).then((semgrepResult) => {
-                                          onResult(mergeScanResults(nativeResult, semgrepResult));
-                                    });
-                              })
-                              .catch((error: unknown) => {
-                                    throw new Error(`Falha durante a análise: ${errorMessage(error)}`, {
-                                          cause: error,
-                                    });
-                              }),
+                  task: async () => {
+                        try {
+                              onResult(await runScanEngines(path, rules, options));
+                        } catch (error) {
+                              throw error;
+                        }
+                  },
             },
       ]);
 

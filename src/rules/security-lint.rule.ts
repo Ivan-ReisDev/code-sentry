@@ -18,17 +18,25 @@ const RULES = {
 
 const PLUGINS = { security: securityPlugin };
 
+const suppressionMarker = (ruleId: string): string => `codesentry-disable-next-line ${ruleId}`;
+
+const isSuppressed = (contentLines: string[], finding: { ruleId: string; line: number }): boolean =>
+      contentLines.at(finding.line - 2)?.includes(suppressionMarker(finding.ruleId)) ?? false;
+
 export const securityLintRule: Rule = {
       id: 'security-lint',
       description:
             'Detecta padrões de segurança genéricos (object injection, regex não literal, fs não literal, etc.) via eslint-plugin-security',
       check(filePath: string, content: string): RuleFinding[] {
-            return runEslintRules(filePath, content, RULES, PLUGINS).map((finding) => ({
-                  ruleId: finding.ruleId,
-                  message: `Padrão inseguro detectado (${finding.ruleId}): ${finding.message}`,
-                  file: filePath,
-                  line: finding.line,
-                  severity: 'medium',
-            }));
+            const contentLines = content.split('\n');
+            return runEslintRules(filePath, content, RULES, PLUGINS)
+                  .filter((finding) => !isSuppressed(contentLines, finding))
+                  .map((finding) => ({
+                        ruleId: finding.ruleId,
+                        message: `Padrão inseguro detectado (${finding.ruleId}): ${finding.message}`,
+                        file: filePath,
+                        line: finding.line,
+                        severity: 'medium',
+                  }));
       },
 };

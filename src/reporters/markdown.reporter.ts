@@ -2,12 +2,14 @@ import type { RuleFinding, Severity } from '../rules/rule.interface.js';
 import type { ScanResult } from '../scanner/scan-result.js';
 
 const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
-const SEVERITY_LABEL: Record<Severity, string> = {
-      critical: 'Critical',
-      high: 'High',
-      medium: 'Medium',
-      low: 'Low',
-};
+const SEVERITY_LABEL = new Map<Severity, string>([
+      ['critical', 'Critical'],
+      ['high', 'High'],
+      ['medium', 'Medium'],
+      ['low', 'Low'],
+]);
+
+const severityLabel = (severity: Severity): string => SEVERITY_LABEL.get(severity) ?? severity;
 
 const escapeCell = (text: string): string => text.replaceAll('|', '\\|');
 
@@ -30,7 +32,7 @@ const findingsTable = (findings: RuleFinding[]): string[] => {
 };
 
 const severitySection = (severity: Severity, findings: RuleFinding[]): string[] => {
-      const lines = [`## ${SEVERITY_LABEL[severity]} (${findings.length})`, ''];
+      const lines = [`## ${severityLabel(severity)} (${findings.length})`, ''];
       const byRule = groupBy(findings, (f) => f.ruleId);
 
       for (const ruleId of [...byRule.keys()].sort()) {
@@ -59,7 +61,7 @@ const reportHeader = (result: ScanResult, generatedAt: Date): string[] => [
 const summaryTable = (bySeverity: Map<string, RuleFinding[]>): string[] => {
       const lines = ['## Resumo por severidade', '', '| Severidade | Quantidade |', '| --- | --- |'];
       for (const severity of SEVERITY_ORDER) {
-            lines.push(`| ${SEVERITY_LABEL[severity]} | ${(bySeverity.get(severity) ?? []).length} |`);
+            lines.push(`| ${severityLabel(severity)} | ${(bySeverity.get(severity) ?? []).length} |`);
       }
       lines.push('');
       return lines;

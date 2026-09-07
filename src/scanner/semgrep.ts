@@ -58,6 +58,60 @@ export type SemgrepExecutor = (
       options: { cwd: string; maxBuffer: number; env?: NodeJS.ProcessEnv },
 ) => Promise<{ stdout: string }>;
 
+const semgrepArgs = (ruleset: string): string[] => [
+      'scan',
+      '--config',
+      ruleset,
+      '--metrics=off',
+      '--json',
+      '--quiet',
+      '--exclude',
+      'node_modules',
+      '--exclude',
+      '.git',
+      '--exclude',
+      'dist',
+      '--exclude',
+      '.next',
+      '--exclude',
+      'tests',
+      // Não repetir targetDir aqui: o processo já roda com cwd = targetDir,
+      // então o alvo relativo a esse cwd é o diretório atual.
+      '.',
+];
+
+const semgrepEnvironment = (runtime: BundledSemgrepRuntime): NodeJS.ProcessEnv => {
+      const semgrepDir = dirname(runtime.semgrep);
+      const systemPathFallback =
+            process.platform === 'win32' ? 'C:\\Windows\\System32;C:\\Windows' : '/usr/local/bin:/usr/bin:/bin';
+      return {
+            ...process.env,
+            PATH: `${semgrepDir}${delimiter}${dirname(semgrepDir)}${delimiter}${process.env.PATH ?? ''}${delimiter}${systemPathFallback}`,
+      };
+};
+
+const executeSemgrep = async (
+      targetDir: string,
+      runtime: BundledSemgrepRuntime,
+      ruleset: string,
+      execute: SemgrepExecutor,
+): Promise<string> => {
+      try {
+            const { stdout } = await execute(runtime.semgrep, semgrepArgs(ruleset), {
+                  cwd: targetDir,
+                  maxBuffer: 20 * 1024 * 1024,
+                  env: semgrepEnvironment(runtime),
+            });
+            return stdout;
+      } catch (error) {
+            const output = outputFromError(error);
+            if (output) {
+                  return output;
+            }
+            throw new Error('Não foi possível executar o Semgrep embutido.', { cause: error });
+      }
+};
+
 export const runBundledSemgrep = async (
       targetDir: string,
       runtime: BundledSemgrepRuntime = resolveBundledSemgrepRuntime(),
@@ -65,26 +119,6 @@ export const runBundledSemgrep = async (
       execute: SemgrepExecutor = execFileAsync,
 ): Promise<ScanResult> => {
       const startedAt = Date.now();
-      const args = [
-            'scan',
-            '--config',
-            ruleset,
-            '--metrics=off',
-            '--json',
-            '--quiet',
-            '--exclude',
-            'node_modules',
-            '--exclude',
-            '.git',
-            '--exclude',
-            'dist',
-            '--exclude',
-            '.next',
-            // Não repetir targetDir aqui: o processo já roda com cwd = targetDir
-            // (abaixo), então o alvo relativo a esse cwd é o diretório atual.
-            '.',
-      ];
-      let stdout: string;
       // O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
       // em vez de por caminho absoluto — o diretório do runtime precisa vir na frente do PATH
       // para que esse auxiliar (instalado ao lado do executável semgrep) seja encontrado. E o
@@ -95,30 +129,16 @@ export const runBundledSemgrep = async (
       // ferramentas do sistema (ex.: git, para decidir quais arquivos escanear) por nome, e
       // processos pai como "npx" substituem o PATH herdado só por diretórios node_modules/.bin,
       // derrubando /usr/bin e /bin — sem erro, o Semgrep simplesmente escaneia zero arquivos.
-      const semgrepDir = dirname(runtime.semgrep);
-      const SYSTEM_PATH_FALLBACK =
-            process.platform === 'win32' ? 'C:\\Windows\\System32;C:\\Windows' : '/usr/local/bin:/usr/bin:/bin';
-      const env = {
-            ...process.env,
-            PATH: `${semgrepDir}${delimiter}${dirname(semgrepDir)}${delimiter}${process.env.PATH ?? ''}${delimiter}${SYSTEM_PATH_FALLBACK}`,
-      };
-
       try {
-            ({ stdout } = await execute(runtime.semgrep, args, { cwd: targetDir, maxBuffer: 20 * 1024 * 1024, env }));
+            const report = parseSemgrepReport(await executeSemgrep(targetDir, runtime, ruleset, execute));
+            const scannedFiles = report.paths?.scanned.length ?? 0;
+            return {
+                  scannedFiles,
+                  findings: mapSemgrepReportToFindings(report),
+                  durationMs: Date.now() - startedAt,
+                  engines: { semgrep: scannedFiles },
+            };
       } catch (error) {
-            const output = outputFromError(error);
-            if (!output) {
-                  throw new Error('Não foi possível executar o Semgrep embutido.', { cause: error });
-            }
-            stdout = output;
+            throw new Error('Não foi possível processar o resultado do Semgrep.', { cause: error });
       }
-
-      const report = parseSemgrepReport(stdout);
-      const scannedFiles = report.paths?.scanned.length ?? 0;
-      return {
-            scannedFiles,
-            findings: mapSemgrepReportToFindings(report),
-            durationMs: Date.now() - startedAt,
-            engines: { semgrep: scannedFiles },
-      };
 };

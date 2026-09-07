@@ -8,7 +8,7 @@ export const registerXxeUnsafeXmlParsingCommand = (program: Command): void => {
             .description('Detecta parsing de XML com noent/dtdload habilitados (risco de XXE)')
             .argument('[path]', 'diretório a ser analisado', '.')
             .option('--json', 'exibe o resultado em JSON')
-            .action(async (path: string, options: ScanOutputOptions) => {
-                  await scanAndReport(path, [xxeUnsafeXmlParsingRule], 'Checking unsafe XML parsing...', options);
-            });
+            .action((path: string, options: ScanOutputOptions) =>
+                  scanAndReport(path, [xxeUnsafeXmlParsingRule], 'Checking unsafe XML parsing...', options),
+            );
 };

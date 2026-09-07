@@ -71,13 +71,12 @@ const analyzeFile = (sourceFile: SourceNode): FileAnalysis => {
       };
 
       visitSourceNodes(sourceFile, (node) => {
-            if (isBase64DecodeCall(node) && node.loc) {
-                  analysis.base64DecodeLines.push(node.loc.start.line);
-            } else if (isJsonParseCall(node)) {
-                  analysis.hasJsonParse = true;
-            } else if (isSignatureVerificationCall(node)) {
-                  analysis.hasSignatureVerification = true;
+            const base64DecodeLine = isBase64DecodeCall(node) ? node.loc?.start.line : undefined;
+            if (base64DecodeLine !== undefined) {
+                  analysis.base64DecodeLines.push(base64DecodeLine);
             }
+            analysis.hasJsonParse ||= isJsonParseCall(node);
+            analysis.hasSignatureVerification ||= isSignatureVerificationCall(node);
       });
 
       return analysis;

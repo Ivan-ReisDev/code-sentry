@@ -8,7 +8,7 @@ export const registerSensitiveDataInLogsCommand = (program: Command): void => {
             .description('Detecta senhas/segredos/tokens sendo passados para chamadas de log')
             .argument('[path]', 'diretório a ser analisado', '.')
             .option('--json', 'exibe o resultado em JSON')
-            .action(async (path: string, options: ScanOutputOptions) => {
-                  await scanAndReport(path, [sensitiveDataInLogsRule], 'Checking sensitive data in logs...', options);
-            });
+            .action((path: string, options: ScanOutputOptions) =>
+                  scanAndReport(path, [sensitiveDataInLogsRule], 'Checking sensitive data in logs...', options),
+            );
 };

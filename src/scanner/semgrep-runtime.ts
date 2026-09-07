@@ -39,10 +39,12 @@ export const resolveBundledSemgrepRuntime = (
 
       try {
             const manifestPath = resolveManifestPath(packageName);
+            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- manifestPath comes from package resolution for a supported platform.
             const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as RuntimeManifest;
             const runtime = {
                   semgrep: resolve(dirname(manifestPath), manifest.semgrep),
             };
+            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- semgrep is resolved relative to the verified runtime manifest.
             if (!existsSync(runtime.semgrep)) {
                   throw new Error('artefatos do runtime ausentes');
             }

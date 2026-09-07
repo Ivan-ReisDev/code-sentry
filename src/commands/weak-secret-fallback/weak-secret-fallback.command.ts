@@ -10,7 +10,7 @@ export const registerWeakSecretFallbackCommand = (program: Command): void => {
             )
             .argument('[path]', 'diretório a ser analisado', '.')
             .option('--json', 'exibe o resultado em JSON')
-            .action(async (path: string, options: ScanOutputOptions) => {
-                  await scanAndReport(path, [weakSecretFallbackRule], 'Checking weak secret fallbacks...', options);
-            });
+            .action((path: string, options: ScanOutputOptions) =>
+                  scanAndReport(path, [weakSecretFallbackRule], 'Checking weak secret fallbacks...', options),
+            );
 };

@@ -30,15 +30,15 @@ export const nodeName = (node: unknown): string | undefined => {
       return nameValue(node) ?? literalValue(node) ?? nodeName(node.id);
 };
 
-const PARENT_NAME_KEYS: Record<string, string> = {
-      VariableDeclarator: 'id',
-      ObjectProperty: 'key',
-      AssignmentExpression: 'left',
-};
+const PARENT_NAME_READERS = new Map<string, (parent: SourceNode) => unknown>([
+      ['VariableDeclarator', (parent) => parent.id],
+      ['ObjectProperty', (parent) => parent.key],
+      ['AssignmentExpression', (parent) => parent.left],
+]);
 
 const parentFunctionName = (parent?: SourceNode): string | undefined => {
-      const nameKey = parent ? PARENT_NAME_KEYS[parent.type] : undefined;
-      return nameKey ? nodeName(parent?.[nameKey]) : undefined;
+      const readName = parent ? PARENT_NAME_READERS.get(parent.type) : undefined;
+      return readName && parent ? nodeName(readName(parent)) : undefined;
 };
 
 const isConstructor = (node: SourceNode): boolean => {

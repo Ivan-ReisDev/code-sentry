@@ -24,19 +24,16 @@ const hasRiskyOptionEnabled = (options: SourceNode | undefined): boolean => {
 };
 
 const isUnsafeXmlParseCall = (node: SourceNode): boolean => {
-      if (node.type !== 'CallExpression') {
-            return false;
-      }
       const callee = node.callee as SourceNode | undefined;
-      if (callee?.type !== 'MemberExpression') {
-            return false;
-      }
-      const property = callee.property as SourceNode | undefined;
-      if (property?.type !== 'Identifier' || !XML_PARSE_METHOD_NAMES.has(property.name as string)) {
-            return false;
-      }
+      const property = callee?.property as SourceNode | undefined;
       const args = node.arguments as SourceNode[] | undefined;
-      return hasRiskyOptionEnabled(args?.[1]);
+      return (
+            node.type === 'CallExpression' &&
+            callee?.type === 'MemberExpression' &&
+            property?.type === 'Identifier' &&
+            XML_PARSE_METHOD_NAMES.has(property.name as string) &&
+            hasRiskyOptionEnabled(args?.[1])
+      );
 };
 
 const findUnsafeXmlParsingLines = (filePath: string, content: string): number[] => {

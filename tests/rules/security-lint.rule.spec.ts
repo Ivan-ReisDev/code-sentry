@@ -31,6 +31,19 @@ it('does not flag a write with a literal key', () => {
       expect(findings).toHaveLength(0);
 });
 
+it('honors a narrowly scoped CodeSentry suppression with an explicit rule id', () => {
+      const findings = securityLintRule.check(
+            'file.js',
+            [
+                  "import { readFile } from 'node:fs/promises';",
+                  '// codesentry-disable-next-line security/detect-non-literal-fs-filename -- path was validated by the caller.',
+                  'readFile(path);',
+            ].join('\n'),
+      );
+
+      expect(findings).toHaveLength(0);
+});
+
 it('does not flag eval (covered by the no-eval rule instead)', () => {
       const findings = securityLintRule.check('file.js', 'eval(userInput);');
 

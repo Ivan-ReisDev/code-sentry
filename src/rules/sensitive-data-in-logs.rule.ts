@@ -37,14 +37,10 @@ const propertyKeyName = (property: SourceNode): string | undefined => {
 const argumentContainsSensitiveData = (argument: SourceNode): boolean => {
       let found = false;
       visitSourceNodes(argument, (node) => {
-            if (node.type === 'Identifier' && SENSITIVE_NAME_PATTERN.test(node.name as string)) {
-                  found = true;
-            } else if (node.type === 'ObjectProperty') {
-                  const keyName = propertyKeyName(node);
-                  if (keyName && SENSITIVE_NAME_PATTERN.test(keyName)) {
-                        found = true;
-                  }
-            }
+            const isSensitiveIdentifier =
+                  node.type === 'Identifier' && SENSITIVE_NAME_PATTERN.test(node.name as string);
+            const keyName = node.type === 'ObjectProperty' ? propertyKeyName(node) : undefined;
+            found ||= isSensitiveIdentifier || (keyName !== undefined && SENSITIVE_NAME_PATTERN.test(keyName));
       });
       return found;
 };

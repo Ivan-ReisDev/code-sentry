@@ -16,23 +16,42 @@ interface ChildProcessBindings {
 const isChildProcessModuleSpecifier = (node: SourceNode | undefined): boolean =>
       node?.type === 'StringLiteral' && CHILD_PROCESS_MODULE_NAMES.has(node.value as string);
 
+const localName = (specifier: SourceNode): string | undefined => {
+      const local = specifier.local as SourceNode | undefined;
+      return local?.type === 'Identifier' ? (local.name as string) : undefined;
+};
+
+const isExecImport = (specifier: SourceNode): boolean => {
+      const imported = specifier.imported as SourceNode | undefined;
+      return (
+            specifier.type === 'ImportSpecifier' &&
+            imported?.type === 'Identifier' &&
+            EXEC_METHOD_NAMES.has(imported.name as string)
+      );
+};
+
+const isNamespaceImport = (specifier: SourceNode): boolean =>
+      specifier.type === 'ImportDefaultSpecifier' || specifier.type === 'ImportNamespaceSpecifier';
+
+const collectImportBinding = (specifier: SourceNode, bindings: ChildProcessBindings): void => {
+      const name = localName(specifier);
+      if (!name) {
+            return;
+      }
+      const bindingSet = isExecImport(specifier)
+            ? bindings.directCalls
+            : isNamespaceImport(specifier)
+              ? bindings.namespaces
+              : undefined;
+      bindingSet?.add(name);
+};
+
 const collectFromImportDeclaration = (node: SourceNode, bindings: ChildProcessBindings): void => {
       if (!isChildProcessModuleSpecifier(node.source as SourceNode | undefined)) {
             return;
       }
       for (const specifier of (node.specifiers as SourceNode[] | undefined) ?? []) {
-            const local = specifier.local as SourceNode | undefined;
-            if (local?.type !== 'Identifier') {
-                  continue;
-            }
-            if (specifier.type === 'ImportSpecifier') {
-                  const imported = specifier.imported as SourceNode | undefined;
-                  if (imported?.type === 'Identifier' && EXEC_METHOD_NAMES.has(imported.name as string)) {
-                        bindings.directCalls.add(local.name as string);
-                  }
-            } else if (specifier.type === 'ImportDefaultSpecifier' || specifier.type === 'ImportNamespaceSpecifier') {
-                  bindings.namespaces.add(local.name as string);
-            }
+            collectImportBinding(specifier, bindings);
       }
 };
 
@@ -42,18 +61,7 @@ const isRequireCall = (node: SourceNode | undefined): boolean =>
       ((node.callee as SourceNode).name as string) === 'require' &&
       isChildProcessModuleSpecifier((node.arguments as SourceNode[] | undefined)?.[0]);
 
-const collectFromVariableDeclarator = (node: SourceNode, bindings: ChildProcessBindings): void => {
-      if (!isRequireCall(node.init as SourceNode | undefined)) {
-            return;
-      }
-      const id = node.id as SourceNode | undefined;
-      if (id?.type === 'Identifier') {
-            bindings.namespaces.add(id.name as string);
-            return;
-      }
-      if (id?.type !== 'ObjectPattern') {
-            return;
-      }
+const collectDirectCallBindings = (id: SourceNode, bindings: ChildProcessBindings): void => {
       for (const property of (id.properties as SourceNode[] | undefined) ?? []) {
             const key = property.key as SourceNode | undefined;
             const value = property.value as SourceNode | undefined;
@@ -65,6 +73,17 @@ const collectFromVariableDeclarator = (node: SourceNode, bindings: ChildProcessB
                   bindings.directCalls.add(value.name as string);
             }
       }
+};
+
+const collectFromVariableDeclarator = (node: SourceNode, bindings: ChildProcessBindings): void => {
+      if (!isRequireCall(node.init as SourceNode | undefined)) {
+            return;
+      }
+      const id = node.id as SourceNode | undefined;
+      const namespaceName = id?.type === 'Identifier' ? (id.name as string) : undefined;
+      const destructuredBindings = id?.type === 'ObjectPattern' ? id : undefined;
+      namespaceName && bindings.namespaces.add(namespaceName);
+      destructuredBindings && collectDirectCallBindings(destructuredBindings, bindings);
 };
 
 const collectChildProcessBindings = (sourceFile: SourceNode): ChildProcessBindings => {

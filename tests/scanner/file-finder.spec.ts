@@ -41,6 +41,17 @@ it('ignores dependency, VCS and build-output folders for .tsx/.jsx files', async
       expect(files[0]).toContain('App.tsx');
 });
 
+it('ignores test directories, whose intentionally unsafe fixtures are not application code', async () => {
+      await mkdir(join(dir, 'tests', 'fixtures'), { recursive: true });
+      await writeFile(join(dir, 'tests', 'fixtures', 'unsafe.ts'), 'document.write(location.hash);');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+
+      const files = await findFiles(dir);
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toContain('App.tsx');
+});
+
 it('never reads inside an ignored directory, so unreadable content there cannot fail the scan', async () => {
       await mkdir(join(dir, 'node_modules'), { recursive: true });
       await writeFile(join(dir, 'node_modules', 'lib.tsx'), 'export const z = 1;');

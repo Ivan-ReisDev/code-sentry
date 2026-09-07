@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 export const resolveBundledSemgrepRuleset = (): string => {
       try {
             const ruleset = require.resolve('codesentry-semgrep-rules/rules/owasp.yml');
+            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- require.resolve returns the package-owned ruleset path.
             if (!existsSync(ruleset)) {
                   throw new Error('ruleset ausente');
             }

@@ -25,17 +25,20 @@ const chainReachesCatch = (thenCall: SourceNode, ancestors: SourceNode[]): boole
       let i = 0;
 
       while (i < ancestors.length) {
-            const member = ancestors[i];
-            const nextCall = ancestors[i + 1];
+            const member = ancestors.at(i);
+            const nextCall = ancestors.at(i + 1);
             const isChainMember =
-                  member?.type === 'MemberExpression' && member.object === currentCall && isCallOf(nextCall, member);
+                  member !== undefined &&
+                  member.type === 'MemberExpression' &&
+                  member.object === currentCall &&
+                  isCallOf(nextCall, member);
             const methodName = isChainMember ? memberPropertyName(member) : undefined;
             const continuesChain = methodName === 'then' || methodName === 'finally';
 
             if (methodName === 'catch') {
                   return true;
             }
-            if (!continuesChain) {
+            if (!nextCall || !continuesChain) {
                   return false;
             }
 

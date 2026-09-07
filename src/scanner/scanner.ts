@@ -19,29 +19,40 @@ const parseErrorFinding = (filePath: string, error: unknown): RuleFinding => ({
 
 const readFileContent = async (filePath: string): Promise<string> => {
       try {
+            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- filePath is emitted by findFiles().
             return await readFile(filePath, 'utf-8');
       } catch (error) {
             throw new Error(`Não foi possível ler o arquivo "${filePath}".`, { cause: error });
       }
 };
 
-const scanFile = async (filePath: string, rules: Rule[]): Promise<RuleFinding[]> => {
-      const content = await readFileContent(filePath);
-      const findings: RuleFinding[] = [];
-      let hasParseError = false;
+const checkRule = (rule: Rule, filePath: string, content: string): { findings: RuleFinding[]; error?: unknown } => {
+      try {
+            return { findings: rule.check(filePath, content) };
+      } catch (error) {
+            return { findings: [], error };
+      }
+};
 
-      for (const rule of rules) {
-            try {
-                  findings.push(...rule.check(filePath, content));
-            } catch (error) {
-                  if (!hasParseError) {
-                        findings.push(parseErrorFinding(filePath, error));
+const scanFile = async (filePath: string, rules: Rule[]): Promise<RuleFinding[]> => {
+      try {
+            const content = await readFileContent(filePath);
+            const findings: RuleFinding[] = [];
+            let hasParseError = false;
+
+            for (const rule of rules) {
+                  const result = checkRule(rule, filePath, content);
+                  findings.push(...result.findings);
+                  if (result.error && !hasParseError) {
+                        findings.push(parseErrorFinding(filePath, result.error));
                         hasParseError = true;
                   }
             }
-      }
 
-      return findings;
+            return findings;
+      } catch (error) {
+            throw new Error(`Não foi possível analisar o arquivo "${filePath}".`, { cause: error });
+      }
 };
 
 export const runScan = async (

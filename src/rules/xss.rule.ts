@@ -15,29 +15,27 @@ const PLUGINS = { 'no-unsanitized': noUnsanitizedPlugin };
 // prop React, sintaticamente uma JSXAttribute — bem diferente de uma
 // AssignmentExpression para .innerHTML), então esse sink é checado à parte,
 // com o mesmo parser Babel usado pelas demais rules hand-rolled do projeto.
+const isHtmlProperty = (property: SourceNode): boolean => {
+      const key = property.key as SourceNode | undefined;
+      return key?.type === 'Identifier' && key.name === '__html';
+};
+
 const isDangerouslySetInnerHtmlWithDynamicValue = (node: SourceNode): boolean => {
-      if (node.type !== 'JSXAttribute') {
-            return false;
-      }
       const name = node.name as SourceNode | undefined;
-      if (name?.type !== 'JSXIdentifier' || name.name !== 'dangerouslySetInnerHTML') {
-            return false;
-      }
       const value = node.value as SourceNode | undefined;
-      if (value?.type !== 'JSXExpressionContainer') {
-            return false;
-      }
-      const expression = value.expression as SourceNode | undefined;
-      if (expression?.type !== 'ObjectExpression') {
-            return false;
-      }
-      const properties = expression.properties as SourceNode[] | undefined;
-      const htmlProperty = properties?.find((property) => {
-            const key = property.key as SourceNode | undefined;
-            return key?.type === 'Identifier' && key.name === '__html';
-      });
+      const expression = value?.expression as SourceNode | undefined;
+      const properties = expression?.properties as SourceNode[] | undefined;
+      const htmlProperty = properties?.find(isHtmlProperty);
       const htmlValue = htmlProperty?.value as SourceNode | undefined;
-      return htmlValue !== undefined && htmlValue.type !== 'StringLiteral';
+      return (
+            node.type === 'JSXAttribute' &&
+            name?.type === 'JSXIdentifier' &&
+            name.name === 'dangerouslySetInnerHTML' &&
+            value?.type === 'JSXExpressionContainer' &&
+            expression?.type === 'ObjectExpression' &&
+            htmlValue !== undefined &&
+            htmlValue.type !== 'StringLiteral'
+      );
 };
 
 const findDangerouslySetInnerHtmlFindings = (filePath: string, content: string): RuleFinding[] => {

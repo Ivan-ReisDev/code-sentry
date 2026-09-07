@@ -3,30 +3,22 @@ import type { Rule, RuleFinding } from './rule.interface.js';
 
 const HEADER_OR_COOKIE_NAME_PATTERN = /headers|cookies?/i;
 
+const accessObjectName = (object: SourceNode | undefined): string | undefined => {
+      const objectProperty = object?.type === 'MemberExpression' ? (object.property as SourceNode | undefined) : object;
+      return objectProperty?.type === 'Identifier' ? (objectProperty.name as string) : undefined;
+};
+
 const isHeaderOrCookieAccessCall = (node: SourceNode | undefined): boolean => {
-      if (node?.type !== 'CallExpression') {
-            return false;
-      }
-      const callee = node.callee as SourceNode | undefined;
-      if (callee?.type !== 'MemberExpression') {
-            return false;
-      }
-      const property = callee.property as SourceNode | undefined;
-      if (property?.type !== 'Identifier' || property.name !== 'get') {
-            return false;
-      }
-      const object = callee.object as SourceNode | undefined;
-      if (object?.type === 'Identifier') {
-            return HEADER_OR_COOKIE_NAME_PATTERN.test(object.name as string);
-      }
-      if (object?.type === 'MemberExpression') {
-            const objectProperty = object.property as SourceNode | undefined;
-            return (
-                  objectProperty?.type === 'Identifier' &&
-                  HEADER_OR_COOKIE_NAME_PATTERN.test(objectProperty.name as string)
-            );
-      }
-      return false;
+      const callee = node?.callee as SourceNode | undefined;
+      const property = callee?.property as SourceNode | undefined;
+      const object = callee?.object as SourceNode | undefined;
+      return (
+            node?.type === 'CallExpression' &&
+            callee?.type === 'MemberExpression' &&
+            property?.type === 'Identifier' &&
+            property.name === 'get' &&
+            HEADER_OR_COOKIE_NAME_PATTERN.test(accessObjectName(object) ?? '')
+      );
 };
 
 const collectStringConstants = (sourceFile: SourceNode): Map<string, string> => {
@@ -52,18 +44,15 @@ const isConstantStringSide = (node: SourceNode | undefined, constants: Map<strin
 };
 
 const isHardcodedAuthorizationComparison = (node: SourceNode, constants: Map<string, string>): boolean => {
-      if (node.type !== 'BinaryExpression' || (node.operator !== '===' && node.operator !== '==')) {
-            return false;
-      }
       const left = node.left as SourceNode | undefined;
       const right = node.right as SourceNode | undefined;
-      if (isHeaderOrCookieAccessCall(left)) {
-            return isConstantStringSide(right, constants);
-      }
-      if (isHeaderOrCookieAccessCall(right)) {
-            return isConstantStringSide(left, constants);
-      }
-      return false;
+      const isEquality = node.operator === '===' || node.operator === '==';
+      return (
+            node.type === 'BinaryExpression' &&
+            isEquality &&
+            ((isHeaderOrCookieAccessCall(left) && isConstantStringSide(right, constants)) ||
+                  (isHeaderOrCookieAccessCall(right) && isConstantStringSide(left, constants)))
+      );
 };
 
 const findHardcodedAuthorizationLines = (filePath: string, content: string): number[] => {

@@ -88,47 +88,48 @@ it('keeps findings when Semgrep exits non-zero with a valid JSON report', async 
       });
 });
 
+const EXPECTED_SEMGREP_ARGS = [
+      'scan',
+      '--config',
+      '/local/owasp.yml',
+      '--metrics=off',
+      '--json',
+      '--quiet',
+      '--exclude',
+      'node_modules',
+      '--exclude',
+      '.git',
+      '--exclude',
+      'dist',
+      '--exclude',
+      '.next',
+      '--exclude',
+      'tests',
+];
+
+const assertDirectSemgrepInvocation = (executable: string, args: string[], cwd: string): void => {
+      expect(executable).toBe('/runtime/bin/semgrep');
+      expect(cwd).toBe('some/relative/dir');
+      expect(args.at(-1)).toBe('.');
+      expect(args).not.toContain('some/relative/dir');
+      expect(args).toEqual(expect.arrayContaining(EXPECTED_SEMGREP_ARGS));
+      expect(args).toContain('tests');
+      expect(args).not.toContain('-m');
+      expect(args.join(' ')).not.toContain('semgrep.dev');
+};
+
 it('invokes the bundled semgrep executable directly, not via the deprecated "python -m semgrep" form', async () => {
-      let executable = '';
-      let args: string[] = [];
-      let cwd = '';
+      const invocation = { executable: '', args: [] as string[], cwd: '' };
       const execute = (file: string, receivedArgs: string[], options: { cwd: string }) => {
-            executable = file;
-            args = receivedArgs;
-            cwd = options.cwd;
+            invocation.executable = file;
+            invocation.args = receivedArgs;
+            invocation.cwd = options.cwd;
             return Promise.resolve({ stdout: JSON.stringify({ results: [], paths: { scanned: [] } }) });
       };
 
       await runBundledSemgrep('some/relative/dir', { semgrep: '/runtime/bin/semgrep' }, '/local/owasp.yml', execute);
 
-      expect(executable).toBe('/runtime/bin/semgrep');
-      expect(cwd).toBe('some/relative/dir');
-      // O alvo passado ao Semgrep tem que ser "." — o processo já roda com cwd
-      // definido como targetDir, então repetir targetDir como argumento faria
-      // o Semgrep procurar por "some/relative/dir/some/relative/dir" (inexistente)
-      // e silenciosamente escanear zero arquivos.
-      expect(args.at(-1)).toBe('.');
-      expect(args).not.toContain('some/relative/dir');
-      expect(args).toEqual(
-            expect.arrayContaining([
-                  'scan',
-                  '--config',
-                  '/local/owasp.yml',
-                  '--metrics=off',
-                  '--json',
-                  '--quiet',
-                  '--exclude',
-                  'node_modules',
-                  '--exclude',
-                  '.git',
-                  '--exclude',
-                  'dist',
-                  '--exclude',
-                  '.next',
-            ]),
-      );
-      expect(args).not.toContain('-m');
-      expect(args.join(' ')).not.toContain('semgrep.dev');
+      assertDirectSemgrepInvocation(invocation.executable, invocation.args, invocation.cwd);
 });
 
 it('puts the runtime\'s own directory first on PATH, since Semgrep execs a "pysemgrep" helper by bare name', async () => {

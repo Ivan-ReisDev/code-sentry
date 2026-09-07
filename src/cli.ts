@@ -91,6 +91,7 @@ const require = createRequire(import.meta.url);
 
 const readPackageVersion = (): string => {
       const packageJsonPath = require.resolve('../package.json');
+      // codesentry-disable-next-line security/detect-non-literal-fs-filename -- require.resolve returns the installed package manifest.
       const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
       return version;
 };

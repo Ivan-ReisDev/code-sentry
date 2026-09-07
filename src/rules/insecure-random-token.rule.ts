@@ -35,20 +35,16 @@ const calleeName = (callee: SourceNode | undefined): string | undefined => {
 };
 
 const isDateNowOrGetTimeCall = (node: SourceNode): boolean => {
-      if (node.type !== 'CallExpression') {
-            return false;
-      }
       const callee = node.callee as SourceNode | undefined;
-      if (callee?.type !== 'MemberExpression') {
-            return false;
-      }
-      const property = callee.property as SourceNode | undefined;
+      const property = callee?.property as SourceNode | undefined;
       const propertyName = property?.type === 'Identifier' ? (property.name as string) : undefined;
-      if (propertyName === 'getTime') {
-            return true;
-      }
-      const object = callee.object as SourceNode | undefined;
-      return object?.type === 'Identifier' && object.name === 'Date' && propertyName === 'now';
+      const object = callee?.object as SourceNode | undefined;
+      return (
+            node.type === 'CallExpression' &&
+            callee?.type === 'MemberExpression' &&
+            (propertyName === 'getTime' ||
+                  (object?.type === 'Identifier' && object.name === 'Date' && propertyName === 'now'))
+      );
 };
 
 const TIMESTAMP_NAME_PATTERN = /timestamp|^now$/i;

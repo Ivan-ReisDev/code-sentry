@@ -5,20 +5,18 @@ const CIPHER_METHOD_NAMES = new Set(['createCipheriv', 'createDecipheriv']);
 const WEAK_MODE_PATTERN = /-(cbc|ecb)$/i;
 
 const isWeakCipherModeCall = (node: SourceNode): boolean => {
-      if (node.type !== 'CallExpression') {
-            return false;
-      }
       const callee = node.callee as SourceNode | undefined;
-      if (callee?.type !== 'MemberExpression') {
-            return false;
-      }
-      const property = callee.property as SourceNode | undefined;
-      if (property?.type !== 'Identifier' || !CIPHER_METHOD_NAMES.has(property.name as string)) {
-            return false;
-      }
+      const property = callee?.property as SourceNode | undefined;
       const args = node.arguments as SourceNode[] | undefined;
       const algorithm = args?.[0];
-      return algorithm?.type === 'StringLiteral' && WEAK_MODE_PATTERN.test(algorithm.value as string);
+      return (
+            node.type === 'CallExpression' &&
+            callee?.type === 'MemberExpression' &&
+            property?.type === 'Identifier' &&
+            CIPHER_METHOD_NAMES.has(property.name as string) &&
+            algorithm?.type === 'StringLiteral' &&
+            WEAK_MODE_PATTERN.test(algorithm.value as string)
+      );
 };
 
 const findWeakCipherModeLines = (filePath: string, content: string): number[] => {

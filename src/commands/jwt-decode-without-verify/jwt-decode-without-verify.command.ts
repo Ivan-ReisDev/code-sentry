@@ -8,12 +8,12 @@ export const registerJwtDecodeWithoutVerifyCommand = (program: Command): void =>
             .description('Detecta decodificação manual de um token (base64 + JSON.parse) sem verificar a assinatura')
             .argument('[path]', 'diretório a ser analisado', '.')
             .option('--json', 'exibe o resultado em JSON')
-            .action(async (path: string, options: ScanOutputOptions) => {
-                  await scanAndReport(
+            .action((path: string, options: ScanOutputOptions) =>
+                  scanAndReport(
                         path,
                         [jwtDecodeWithoutVerifyRule],
                         'Checking JWT decode without verification...',
                         options,
-                  );
-            });
+                  ),
+            );
 };

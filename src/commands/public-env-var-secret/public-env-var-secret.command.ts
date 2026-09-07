@@ -8,7 +8,7 @@ export const registerPublicEnvVarSecretCommand = (program: Command): void => {
             .description('Detecta uma variável de ambiente pública (NEXT_PUBLIC_/VITE_/REACT_APP_) com nome de segredo')
             .argument('[path]', 'diretório a ser analisado', '.')
             .option('--json', 'exibe o resultado em JSON')
-            .action(async (path: string, options: ScanOutputOptions) => {
-                  await scanAndReport(path, [publicEnvVarSecretRule], 'Checking public env var secrets...', options);
-            });
+            .action((path: string, options: ScanOutputOptions) =>
+                  scanAndReport(path, [publicEnvVarSecretRule], 'Checking public env var secrets...', options),
+            );
 };
