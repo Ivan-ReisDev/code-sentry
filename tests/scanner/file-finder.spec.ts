@@ -52,6 +52,67 @@ it('ignores test directories, whose intentionally unsafe fixtures are not applic
       expect(files[0]).toContain('App.tsx');
 });
 
+it('ignores "test" and "__tests__" directories too, at any depth', async () => {
+      await mkdir(join(dir, 'src', '__tests__'), { recursive: true });
+      await mkdir(join(dir, 'test'), { recursive: true });
+      await writeFile(join(dir, 'src', '__tests__', 'unsafe.ts'), 'document.write(location.hash);');
+      await writeFile(join(dir, 'test', 'unsafe.ts'), 'document.write(location.hash);');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+
+      const files = await findFiles(dir);
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toContain('App.tsx');
+});
+
+it('ignores .spec. and .test. files anywhere, not just inside test directories', async () => {
+      await writeFile(join(dir, 'Component.spec.tsx'), 'export const x = 1;');
+      await writeFile(join(dir, 'utils.test.ts'), 'export const y = 1;');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+
+      const files = await findFiles(dir);
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toContain('App.tsx');
+});
+
+it('includes test directories and .spec./.test. files when includeTests is true', async () => {
+      await mkdir(join(dir, 'tests'), { recursive: true });
+      await writeFile(join(dir, 'tests', 'fixture.ts'), 'export const f = 1;');
+      await writeFile(join(dir, 'Component.spec.tsx'), 'export const x = 1;');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+
+      const files = await findFiles(dir, true);
+
+      expect(files).toHaveLength(3);
+});
+
+it('still ignores node_modules even when includeTests is true', async () => {
+      await mkdir(join(dir, 'node_modules'), { recursive: true });
+      await writeFile(join(dir, 'node_modules', 'lib.ts'), 'export const z = 1;');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+
+      const files = await findFiles(dir, true);
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toContain('App.tsx');
+});
+
+it('never reads inside an ignored test directory, so unreadable content there cannot fail the scan', async () => {
+      await mkdir(join(dir, 'tests'), { recursive: true });
+      await writeFile(join(dir, 'tests', 'fixture.ts'), 'export const f = 1;');
+      await writeFile(join(dir, 'App.tsx'), 'export const app = 1;');
+      await chmod(join(dir, 'tests'), 0o000);
+
+      try {
+            const files = await findFiles(dir);
+            expect(files).toHaveLength(1);
+            expect(files[0]).toContain('App.tsx');
+      } finally {
+            await chmod(join(dir, 'tests'), 0o755);
+      }
+});
+
 it('never reads inside an ignored directory, so unreadable content there cannot fail the scan', async () => {
       await mkdir(join(dir, 'node_modules'), { recursive: true });
       await writeFile(join(dir, 'node_modules', 'lib.tsx'), 'export const z = 1;');

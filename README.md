@@ -140,6 +140,7 @@ codesentry scan ./src
 codesentry scan . --json
 codesentry scan . --concurrency 4
 codesentry scan . --config ./rules/security.yml
+codesentry scan . --tests
 ```
 
 O Semgrep CE embutido é executado automaticamente depois das regras nativas,
@@ -152,6 +153,11 @@ apenas inteiros positivos. Sem valor, o limite é ajustado para a máquina
 (`min(8, availableParallelism())`). Não há `--config` remoto: atualizações de
 Semgrep e das regras OWASP chegam em novas releases do CodeSentry. Quando
 necessário, `--config` aceita exclusivamente um arquivo YAML local.
+
+Por padrão, arquivos de teste não são analisados: nenhum diretório chamado
+`tests`, `test` ou `__tests__` (em qualquer profundidade) e nenhum arquivo
+com sufixo `.spec.*`/`.test.*` (em qualquer lugar, mesmo fora dessas pastas)
+entra no scan. Use `--tests` para incluí-los.
 
 Em macOS, ARM e plataformas sem runtime publicado, o comando interrompe
 explicitamente em vez de declarar uma análise parcial como completa.
@@ -181,7 +187,7 @@ o scan completo (e sem o Semgrep, que só roda como parte de `scan`). Todos
 seguem o mesmo formato:
 
 ```bash
-codesentry <comando> [path] [--json]
+codesentry <comando> [path] [--json] [--tests]
 ```
 
 Alguns exemplos:
@@ -193,8 +199,12 @@ codesentry xss ./src --json          # possíveis XSS (innerHTML, document.write
 codesentry unsafe-sql ./src          # SQL injection por concatenação
 codesentry command-injection ./src   # child_process com entrada não sanitizada
 codesentry weak-hash-algorithm ./src # uso de MD5/SHA-1 para hashing sensível
-codesentry dependency-audit .        # `npm audit` das dependências do projeto
+codesentry dependency-audit .        # `npm audit` das dependências do projeto (sem --tests: não lê arquivos-fonte)
 ```
+
+Assim como em `scan`, `--tests` inclui arquivos de teste na análise (por
+padrão são ignorados) — exceto em `dependency-audit`, que nunca lê
+arquivos-fonte e por isso não tem essa flag.
 
 A lista completa (30+ comandos, um por regra) sai de `codesentry help` —
 mantê-la sempre em sincronia aqui manualmente não seria viável.

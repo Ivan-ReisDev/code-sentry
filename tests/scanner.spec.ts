@@ -72,6 +72,22 @@ it('uses a sensible default concurrency when none is provided', async () => {
       expect(result.findings).toHaveLength(2);
 });
 
+it('ignores test files by default', async () => {
+      await writeFile(join(dir, 'a.spec.ts'), 'const a = 1;');
+
+      const result = await runScan(dir, [fakeRule]);
+
+      expect(result.scannedFiles).toBe(2);
+});
+
+it('includes test files when includeTests is true', async () => {
+      await writeFile(join(dir, 'a.spec.ts'), 'const a = 1;');
+
+      const result = await runScan(dir, [fakeRule], undefined, true);
+
+      expect(result.scannedFiles).toBe(3);
+});
+
 it('reports a finding instead of aborting the whole scan when a rule throws for one file', async () => {
       await writeFile(join(dir, 'broken.ts'), 'BROKEN');
 

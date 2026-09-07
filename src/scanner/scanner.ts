@@ -59,10 +59,11 @@ export const runScan = async (
       targetDir: string,
       rules: Rule[],
       concurrency: number = DEFAULT_SCAN_CONCURRENCY,
+      includeTests = false,
 ): Promise<ScanResult> => {
       try {
             const startedAt = Date.now();
-            const files = await findFiles(targetDir);
+            const files = await findFiles(targetDir, includeTests);
             const findings = (
                   await runWithConcurrencyLimit(files, concurrency, (filePath) => scanFile(filePath, rules))
             ).flat();

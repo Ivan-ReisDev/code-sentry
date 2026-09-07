@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { delimiter, dirname } from 'node:path';
 import { promisify } from 'node:util';
+import { ALWAYS_IGNORED_DIR_NAMES, TEST_DIR_NAMES, TEST_FILE_GLOBS } from './ignore-patterns.js';
 import type { RuleFinding, Severity } from '../rules/rule.interface.js';
 import type { ScanResult } from './scan-result.js';
 import { resolveBundledSemgrepRuntime, type BundledSemgrepRuntime } from './semgrep-runtime.js';
@@ -58,23 +59,17 @@ export type SemgrepExecutor = (
       options: { cwd: string; maxBuffer: number; env?: NodeJS.ProcessEnv },
 ) => Promise<{ stdout: string }>;
 
-const semgrepArgs = (ruleset: string): string[] => [
+const excludeArgs = (names: readonly string[]): string[] => names.flatMap((name) => ['--exclude', name]);
+
+const semgrepArgs = (ruleset: string, includeTests: boolean): string[] => [
       'scan',
       '--config',
       ruleset,
       '--metrics=off',
       '--json',
       '--quiet',
-      '--exclude',
-      'node_modules',
-      '--exclude',
-      '.git',
-      '--exclude',
-      'dist',
-      '--exclude',
-      '.next',
-      '--exclude',
-      'tests',
+      ...excludeArgs(ALWAYS_IGNORED_DIR_NAMES),
+      ...(includeTests ? [] : excludeArgs([...TEST_DIR_NAMES, ...TEST_FILE_GLOBS])),
       // Não repetir targetDir aqui: o processo já roda com cwd = targetDir,
       // então o alvo relativo a esse cwd é o diretório atual.
       '.',
@@ -95,9 +90,10 @@ const executeSemgrep = async (
       runtime: BundledSemgrepRuntime,
       ruleset: string,
       execute: SemgrepExecutor,
+      includeTests: boolean,
 ): Promise<string> => {
       try {
-            const { stdout } = await execute(runtime.semgrep, semgrepArgs(ruleset), {
+            const { stdout } = await execute(runtime.semgrep, semgrepArgs(ruleset, includeTests), {
                   cwd: targetDir,
                   maxBuffer: 20 * 1024 * 1024,
                   env: semgrepEnvironment(runtime),
@@ -117,6 +113,7 @@ export const runBundledSemgrep = async (
       runtime: BundledSemgrepRuntime = resolveBundledSemgrepRuntime(),
       ruleset: string = resolveBundledSemgrepRuleset(),
       execute: SemgrepExecutor = execFileAsync,
+      includeTests = false,
 ): Promise<ScanResult> => {
       const startedAt = Date.now();
       // O Semgrep executa um auxiliar interno ("pysemgrep") pelo nome, procurando-o no PATH,
@@ -130,7 +127,7 @@ export const runBundledSemgrep = async (
       // processos pai como "npx" substituem o PATH herdado só por diretórios node_modules/.bin,
       // derrubando /usr/bin e /bin — sem erro, o Semgrep simplesmente escaneia zero arquivos.
       try {
-            const report = parseSemgrepReport(await executeSemgrep(targetDir, runtime, ruleset, execute));
+            const report = parseSemgrepReport(await executeSemgrep(targetDir, runtime, ruleset, execute, includeTests));
             const scannedFiles = report.paths?.scanned.length ?? 0;
             return {
                   scannedFiles,

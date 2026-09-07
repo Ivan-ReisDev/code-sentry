@@ -56,6 +56,27 @@ it('logs the path of the generated report', async () => {
       expect(logSpy.mock.calls.flat().join('\n')).toContain('Relatório detalhado gerado em');
 });
 
+it('does not count test files as scanned by default', async () => {
+      await writeFile(join(dir, 'a.spec.ts'), 'const a = 1;');
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const logSpy = vi.spyOn(console, 'log');
+      await scanAndReport(dir, [], 'test', { json: true });
+
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('"scannedFiles": 1');
+});
+
+it('counts test files as scanned when tests option is true', async () => {
+      await writeFile(join(dir, 'a.spec.ts'), 'const a = 1;');
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await scanAndReport(dir, [], 'test', { json: true, tests: true });
+
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('"scannedFiles": 2');
+});
+
 it('surfaces the root cause of a scan failure instead of only a generic wrapper message', async () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 

@@ -105,6 +105,14 @@ const EXPECTED_SEMGREP_ARGS = [
       '.next',
       '--exclude',
       'tests',
+      '--exclude',
+      'test',
+      '--exclude',
+      '__tests__',
+      '--exclude',
+      '*.spec.*',
+      '--exclude',
+      '*.test.*',
 ];
 
 const assertDirectSemgrepInvocation = (executable: string, args: string[], cwd: string): void => {
@@ -130,6 +138,40 @@ it('invokes the bundled semgrep executable directly, not via the deprecated "pyt
       await runBundledSemgrep('some/relative/dir', { semgrep: '/runtime/bin/semgrep' }, '/local/owasp.yml', execute);
 
       assertDirectSemgrepInvocation(invocation.executable, invocation.args, invocation.cwd);
+});
+
+it('omits the test-file/test-directory excludes when includeTests is true, but keeps the always-ignored ones', async () => {
+      const invocation = { args: [] as string[] };
+      const execute = (_file: string, receivedArgs: string[]) => {
+            invocation.args = receivedArgs;
+            return Promise.resolve({ stdout: JSON.stringify({ results: [], paths: { scanned: [] } }) });
+      };
+
+      await runBundledSemgrep(
+            'some/relative/dir',
+            { semgrep: '/runtime/bin/semgrep' },
+            '/local/owasp.yml',
+            execute,
+            true,
+      );
+
+      expect(invocation.args.at(-1)).toBe('.');
+      expect(invocation.args).toEqual(
+            expect.arrayContaining([
+                  '--exclude',
+                  'node_modules',
+                  '--exclude',
+                  '.git',
+                  '--exclude',
+                  'dist',
+                  '--exclude',
+                  '.next',
+            ]),
+      );
+      expect(invocation.args).not.toContain('tests');
+      expect(invocation.args).not.toContain('__tests__');
+      expect(invocation.args).not.toContain('*.spec.*');
+      expect(invocation.args).not.toContain('*.test.*');
 });
 
 it('puts the runtime\'s own directory first on PATH, since Semgrep execs a "pysemgrep" helper by bare name', async () => {

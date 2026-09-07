@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { resolve } from 'node:path';
 import { allRules } from '../../rules/index.js';
+import { withScanOptions } from './scan-options.js';
 import { scanAndReport, type ScanOutputOptions } from './scan-runner.js';
 
 export const parseConcurrency = (value: string): number => {
@@ -19,14 +20,14 @@ export const parseLocalSemgrepConfig = (value: string): string => {
 };
 
 export const registerScanCommand = (program: Command): void => {
-      program
-            .command('scan')
-            .description('Analisa um diretório em busca de vulnerabilidades e problemas de qualidade')
-            .argument('[path]', 'diretório a ser analisado', '.')
-            .option('--json', 'exibe o resultado em JSON')
-            .option('--concurrency <n>', 'limita arquivos processados em paralelo', parseConcurrency)
-            .option('--config <file>', 'usa um ruleset Semgrep YAML local', parseLocalSemgrepConfig)
-            .action((path: string, options: ScanOutputOptions) =>
-                  scanAndReport(path, allRules, 'Scanning files...', { ...options, semgrep: true }),
-            );
+      withScanOptions(
+            program
+                  .command('scan')
+                  .description('Analisa um diretório em busca de vulnerabilidades e problemas de qualidade')
+                  .argument('[path]', 'diretório a ser analisado', '.')
+                  .option('--concurrency <n>', 'limita arquivos processados em paralelo', parseConcurrency)
+                  .option('--config <file>', 'usa um ruleset Semgrep YAML local', parseLocalSemgrepConfig),
+      ).action((path: string, options: ScanOutputOptions) =>
+            scanAndReport(path, allRules, 'Scanning files...', { ...options, semgrep: true }),
+      );
 };

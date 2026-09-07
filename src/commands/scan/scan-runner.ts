@@ -16,6 +16,7 @@ export interface ScanOutputOptions {
       json?: boolean;
       concurrency?: number;
       config?: string;
+      tests?: boolean;
       /** Internal: scan command always enables the bundled Semgrep engine. */
       semgrep?: boolean;
 }
@@ -52,11 +53,12 @@ const writeMarkdownReportIfNeeded = async (result: ScanResult, targetDir: string
 
 const runScanEngines = async (path: string, rules: Rule[], options: ScanOutputOptions): Promise<ScanResult> => {
       try {
-            const nativeResult = await runScan(path, rules, options.concurrency);
+            const includeTests = options.tests ?? false;
+            const nativeResult = await runScan(path, rules, options.concurrency, includeTests);
             if (!options.semgrep) {
                   return nativeResult;
             }
-            const semgrepResult = await runBundledSemgrep(path, undefined, options.config);
+            const semgrepResult = await runBundledSemgrep(path, undefined, options.config, undefined, includeTests);
             return mergeScanResults(nativeResult, semgrepResult);
       } catch (error) {
             throw new Error(`Falha durante a análise: ${errorMessage(error)}`, { cause: error });

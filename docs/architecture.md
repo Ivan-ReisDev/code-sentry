@@ -21,6 +21,7 @@ dados `command → scanner → rules → reporter`.
 │   ├── scanner/
 │   │   ├── scanner.ts                # motor nativo: aplica rules/ sobre cada arquivo
 │   │   ├── file-finder.ts            # descoberta de arquivos (percorre dir por dir)
+│   │   ├── ignore-patterns.ts        # fonte única das exclusões, usada pelos dois motores
 │   │   ├── run-with-concurrency-limit.ts
 │   │   ├── scan-result.ts            # ScanResult, ScanEngines, mergeScanResults
 │   │   ├── dependency-audit.ts       # wrapper de `npm audit --json`
@@ -94,8 +95,9 @@ dados `command → scanner → rules → reporter`.
 1. `index.ts` inicia a CLI chamando `cli.ts`.
 2. `cli.ts` registra todos os comandos (`commands/`) no `Command` do Commander e lê a versão do `package.json` em tempo de execução.
 3. `scan.command.ts` aciona `scan-runner.ts`, que roda dois motores em sequência e funde o resultado:
-      - **Motor nativo** (`scanner/scanner.ts`): `file-finder.ts` localiza os arquivos JS/TS/JSX/TSX (pulando `node_modules`, `.git`, `dist`, `.next`, `tests` — nunca descendo neles, mesmo que estejam corrompidos ou com caminho longo demais), e cada regra de `rules/` roda sobre o conteúdo via `run-with-concurrency-limit.ts`.
+      - **Motor nativo** (`scanner/scanner.ts`): `file-finder.ts` localiza os arquivos JS/TS/JSX/TSX, pulando sempre `node_modules`, `.git`, `dist`, `.next` — nunca descendo neles, mesmo que estejam corrompidos ou com caminho longo demais —, e cada regra de `rules/` roda sobre o conteúdo via `run-with-concurrency-limit.ts`.
       - **Semgrep embutido** (`scanner/semgrep.ts`): roda o ruleset `p/owasp-top-ten` (resolvido por `semgrep-rules.ts`) usando o runtime da plataforma atual (resolvido por `semgrep-runtime.ts`), e mapeia o JSON de saída para o mesmo formato de finding.
+      - **Arquivos de teste** (`scanner/ignore-patterns.ts`): por padrão, nenhum dos dois motores analisa diretórios chamados `tests`/`test`/`__tests__` nem arquivos com sufixo `.spec.*`/`.test.*`, em qualquer profundidade — essa é a única fonte de verdade consultada tanto por `file-finder.ts` quanto pela lista de `--exclude` passada ao Semgrep. A flag `--tests` (presente em `scan` e em todo comando individual por regra) desliga essa exclusão.
       - `scan-result.ts#mergeScanResults` une os dois em um único `ScanResult`, com a cobertura de cada motor em `engines`.
 4. O resultado é passado para um `reporter` (`console.reporter.ts`, `json.reporter.ts` ou, quando há mais de 20 problemas, também `markdown.reporter.ts`), que exibe ou exporta o relatório final.
 5. Falhas em qualquer etapa sobem como `Error` encadeados (`cause`); `errors.ts#formatErrorChain` percorre essa cadeia inteira ao reportar o erro final na CLI, em vez de mostrar só a mensagem do wrapper mais externo.
