@@ -42,20 +42,43 @@ O racional completo está na [ADR 0004](docs/adr/0004-bundled-semgrep-runtime.md
 
 ## Instalação
 
-Em uma release publicada, basta uma instalação:
+Pré-requisito único: [Node.js](https://nodejs.org) 22.12 ou mais recente
+(`node --version` para conferir). Nenhum outro requisito — não precisa
+instalar Python, Docker, Semgrep, criar conta ou autenticar em nada.
+
+### Windows
+
+No PowerShell ou no Prompt de Comando (não precisa de WSL):
+
+```powershell
+npm install -g codesentry
+codesentry scan .
+```
+
+### Linux
 
 ```bash
 npm install -g codesentry
+codesentry scan .
 ```
 
-O pacote compatível de Semgrep CE e Python portátil é instalado como
-dependência opcional automaticamente. Não é necessário instalar Python,
-Docker, Semgrep, criar conta ou autenticar em um site.
+Em ambos os casos, o `npm install` já resolve automaticamente o pacote de
+runtime compatível com a sua plataforma (Semgrep CE + Python portátil) como
+dependência opcional — é isso que faz `codesentry scan` funcionar com
+cobertura OWASP completa sem nenhuma instalação manual. Plataformas com
+runtime publicado hoje: Linux x64 e Windows x64. Os pacotes têm dezenas de
+MB porque incluem esse runtime embutido; essa é a troca para o scan
+funcionar 100% offline depois de instalado.
 
-As plataformas inicialmente suportadas são Linux x64 e Windows x64. Os
-pacotes têm tamanho de dezenas de MB porque incluem o runtime; essa é a troca
-para o scan funcionar offline após a instalação. Durante o desenvolvimento,
-use `npm link`:
+Se `codesentry` não for encontrado no terminal depois de instalado
+globalmente, feche e reabra o terminal (ou rode `npx codesentry scan .`) —
+alguns terminais não recarregam o PATH do npm automaticamente na mesma
+sessão.
+
+### A partir do código-fonte (desenvolvimento)
+
+Para rodar a partir do repositório clonado, em vez do pacote publicado, use
+`npm link`:
 
 ```bash
 git clone git@github.com:Ivan-ReisDev/code-sentry.git
@@ -67,6 +90,16 @@ npm link
 
 Depois disso, o comando `codesentry` fica disponível em qualquer
 diretório do seu terminal.
+
+> **Atenção:** `npx codesentry` rodado de dentro deste repositório clonado
+> executa o `dist/index.js` local (o `package.json` daqui se chama
+> `codesentry`, e o `npx` prioriza isso sobre a instalação global/publicada).
+> O workspace de desenvolvimento sempre tem o ruleset do Semgrep vazio por
+> design (populado só via `npm run prepare:owasp-rules` ou durante a release —
+> ver [ADR 0004](docs/adr/0004-bundled-semgrep-runtime.md)), então o scan
+> roda sem erro mas sempre reporta zero arquivos analisados pelo Semgrep.
+> Para testar o pacote publicado de verdade, rode `codesentry scan` (sem
+> `npx`) fora deste diretório.
 
 ## Uso
 
