@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Ivan-ReisDev/code-sentry/main/docs/assets/logo.png" alt="Logo do CodeSentry" width="480">
+</p>
+
 # codesentry-semgrep-rules
 
 Pacote interno do [CodeSentry](https://github.com/Ivan-ReisDev/code-sentry).
