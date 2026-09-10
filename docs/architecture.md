@@ -57,7 +57,9 @@ dados `command → scanner → rules → reporter`.
 ├── packages/                         # monorepo: pacotes publicados à parte do CLI
 │   ├── semgrep-rules/                # snapshot local do ruleset p/owasp-top-ten
 │   ├── semgrep-linux-x64/            # Python portátil + Semgrep CE para Linux x64
-│   └── semgrep-win32-x64/            # idem para Windows x64
+│   ├── semgrep-win32-x64/            # idem para Windows x64
+│   ├── semgrep-darwin-arm64/         # idem para macOS arm64 (Apple Silicon)
+│   └── semgrep-darwin-x64/           # idem para macOS x64 (Intel)
 │
 ├── scripts/                          # scripts de release (Node/Python, fora do build da CLI)
 │   ├── prepare-owasp-rules.mjs       # baixa e fixa o ruleset OWASP

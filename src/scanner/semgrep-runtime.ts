@@ -19,12 +19,18 @@ const packageForPlatform = (platform: NodeJS.Platform, architecture: string): st
       if (platform === 'win32' && architecture === 'x64') {
             return 'codesentry-semgrep-win32-x64';
       }
+      if (platform === 'darwin' && architecture === 'arm64') {
+            return 'codesentry-semgrep-darwin-arm64';
+      }
+      if (platform === 'darwin' && architecture === 'x64') {
+            return 'codesentry-semgrep-darwin-x64';
+      }
       return undefined;
 };
 
 export const unsupportedRuntimeMessage = (platform: NodeJS.Platform, architecture: string): string =>
       `O runtime Semgrep embutido não está disponível para ${platform}-${architecture}. ` +
-      'O CodeSentry oferece suporte a Linux x64 e Windows x64.';
+      'O CodeSentry oferece suporte a Linux x64, Windows x64 e macOS (arm64 e x64).';
 
 export const resolveBundledSemgrepRuntime = (
       platform: NodeJS.Platform = process.platform,

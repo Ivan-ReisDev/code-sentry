@@ -68,6 +68,12 @@ jobs:
                               - os: windows-latest
                                 package: packages/semgrep-win32-x64
                                 semgrep_binary: semgrep.exe
+                              - os: macos-14
+                                package: packages/semgrep-darwin-arm64
+                                semgrep_binary: semgrep
+                              - os: macos-13
+                                package: packages/semgrep-darwin-x64
+                                semgrep_binary: semgrep
             runs-on: ${{ matrix.os }}
             steps:
                   - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
