@@ -3,7 +3,7 @@ import { isIgnoredDirName, isTestFileName } from '../../src/scanner/ignore-patte
 
 describe('isIgnoredDirName', () => {
       it('always ignores dependency, VCS and build-output directories, regardless of includeTests', () => {
-            for (const name of ['node_modules', '.git', 'dist', '.next']) {
+            for (const name of ['node_modules', '.git', 'dist', '.next', '.angular']) {
                   expect(isIgnoredDirName(name)).toBe(true);
                   expect(isIgnoredDirName(name, true)).toBe(true);
             }

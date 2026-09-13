@@ -1,4 +1,4 @@
-export const ALWAYS_IGNORED_DIR_NAMES = ['node_modules', '.git', 'dist', '.next'] as const;
+export const ALWAYS_IGNORED_DIR_NAMES = ['node_modules', '.git', 'dist', '.next', '.angular'] as const;
 export const TEST_DIR_NAMES = ['tests', 'test', '__tests__'] as const;
 export const TEST_FILE_GLOBS = ['*.spec.*', '*.test.*'] as const;
 
