@@ -23,13 +23,17 @@ const isMathRandomCall = (node: SourceNode): boolean => {
 
 const HASH_LIKE_NAME_PATTERN = /hash|md5|sha1/i;
 
+const memberPropertyName = (callee: SourceNode): string | undefined => {
+      const property = callee.property as SourceNode | undefined;
+      return property?.type === 'Identifier' ? (property.name as string) : undefined;
+};
+
 const calleeName = (callee: SourceNode | undefined): string | undefined => {
       if (callee?.type === 'Identifier') {
             return callee.name as string;
       }
       if (callee?.type === 'MemberExpression') {
-            const property = callee.property as SourceNode | undefined;
-            return property?.type === 'Identifier' ? (property.name as string) : undefined;
+            return memberPropertyName(callee);
       }
       return undefined;
 };
