@@ -130,3 +130,22 @@ it('does not report a simple function with no branches', () => {
 
       expect(findings).toHaveLength(0);
 });
+
+it('counts ternary expressions toward the same total as ifs and loops', () => {
+      const content = [
+            'function fn(node) {',
+            '  if (node.skip) { return undefined; }',
+            '  for (const x of node.children) { doWork(x); }',
+            '  const a = node.type === "A" ? node.a : undefined;',
+            '  const b = node.type === "B" ? node.b : undefined;',
+            '  const c = node.type === "C" ? node.c : undefined;',
+            '  const d = node.type === "D" ? node.d : undefined;',
+            '  return a ?? b ?? c ?? d;',
+            '}',
+      ].join('\n');
+
+      const findings = highComplexityRule.check('file.ts', content);
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0].message).toContain('6');
+});

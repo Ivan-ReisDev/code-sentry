@@ -17,16 +17,35 @@ const hasLimitOption = (options: SourceNode | undefined): boolean => {
       );
 };
 
+type MemberCallParts = {
+      object: SourceNode | undefined;
+      property: SourceNode | undefined;
+      args: SourceNode[] | undefined;
+};
+
+const getMemberCallParts = (node: SourceNode): MemberCallParts => {
+      if (node.type !== 'CallExpression') {
+            return { object: undefined, property: undefined, args: undefined };
+      }
+      const callee = node.callee as SourceNode | undefined;
+      const args = node.arguments as SourceNode[] | undefined;
+      if (callee?.type !== 'MemberExpression') {
+            return { object: undefined, property: undefined, args };
+      }
+      return {
+            object: callee.object as SourceNode | undefined,
+            property: callee.property as SourceNode | undefined,
+            args,
+      };
+};
+
 const isBodyParserWithoutLimit = (node: SourceNode): boolean => {
-      const callee = node.type === 'CallExpression' ? (node.callee as SourceNode | undefined) : undefined;
-      const object = callee?.type === 'MemberExpression' ? (callee.object as SourceNode | undefined) : undefined;
-      const property = callee?.type === 'MemberExpression' ? (callee.property as SourceNode | undefined) : undefined;
+      const { object, property, args } = getMemberCallParts(node);
       const isBodyParserCall =
             object?.type === 'Identifier' &&
             BODY_PARSER_OBJECTS.has(object.name as string) &&
             property?.type === 'Identifier' &&
             BODY_PARSER_METHODS.has(property.name as string);
-      const args = node.type === 'CallExpression' ? (node.arguments as SourceNode[] | undefined) : undefined;
       return isBodyParserCall && !hasLimitOption(args?.[0]);
 };
 

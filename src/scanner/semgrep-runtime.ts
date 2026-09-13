@@ -26,6 +26,8 @@ export const unsupportedRuntimeMessage = (platform: NodeJS.Platform, architectur
       `O runtime Semgrep embutido não está disponível para ${platform}-${architecture}. ` +
       'O CodeSentry oferece suporte a Linux x64 e Windows x64.';
 
+const errorReason = (error: unknown): string => (error instanceof Error ? error.message : 'erro desconhecido');
+
 export const resolveBundledSemgrepRuntime = (
       platform: NodeJS.Platform = process.platform,
       architecture: string = process.arch,
@@ -50,7 +52,6 @@ export const resolveBundledSemgrepRuntime = (
             }
             return runtime;
       } catch (error) {
-            const reason = error instanceof Error ? error.message : 'erro desconhecido';
-            throw new Error(`Não foi possível carregar o runtime Semgrep embutido: ${reason}`, { cause: error });
+            throw new Error(`Não foi possível carregar o runtime Semgrep embutido: ${errorReason(error)}`, { cause: error });
       }
 };

@@ -2,9 +2,10 @@ import { createFunctionStatementCountRule } from './lib/statement-count-rule.js'
 
 export const highComplexityRule = createFunctionStatementCountRule({
       id: 'high-complexity',
-      description: 'Detecta funções com muitos condicionais/loops (complexidade alta)',
+      description: 'Detecta funções com muitos condicionais/loops/ternários (complexidade alta)',
       statementTypes: new Set([
             'IfStatement',
+            'ConditionalExpression',
             'ForStatement',
             'ForInStatement',
             'ForOfStatement',
@@ -14,5 +15,5 @@ export const highComplexityRule = createFunctionStatementCountRule({
             'CatchClause',
       ]),
       maxCount: 5,
-      unitLabel: 'condicionais/loops',
+      unitLabel: 'condicionais/loops/ternários',
 });

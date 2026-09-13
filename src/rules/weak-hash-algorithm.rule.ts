@@ -3,17 +3,30 @@ import type { Rule, RuleFinding } from './rule.interface.js';
 
 const WEAK_ALGORITHMS = /^(md5|sha1)$/i;
 
+const getCallExpressionCallee = (node: SourceNode): SourceNode | undefined => {
+      return node.type === 'CallExpression' ? (node.callee as SourceNode | undefined) : undefined;
+};
+
+const getCallExpressionArgs = (node: SourceNode): SourceNode[] | undefined => {
+      return node.type === 'CallExpression' ? (node.arguments as SourceNode[] | undefined) : undefined;
+};
+
+const getCreateHashProperty = (callee: SourceNode | undefined): SourceNode | undefined => {
+      return callee?.type === 'MemberExpression' ? (callee.property as SourceNode | undefined) : undefined;
+};
+
+const isCreateHashProperty = (property: SourceNode | undefined): boolean => {
+      return property?.type === 'Identifier' && property.name === 'createHash';
+};
+
+const isWeakAlgorithmLiteral = (algorithm: SourceNode | undefined): boolean => {
+      return algorithm?.type === 'StringLiteral' && WEAK_ALGORITHMS.test(algorithm.value as string);
+};
+
 const isWeakCreateHashCall = (node: SourceNode): boolean => {
-      const callee = node.type === 'CallExpression' ? (node.callee as SourceNode | undefined) : undefined;
-      const property = callee?.type === 'MemberExpression' ? (callee.property as SourceNode | undefined) : undefined;
-      const args = node.type === 'CallExpression' ? (node.arguments as SourceNode[] | undefined) : undefined;
-      const algorithm = args?.[0];
-      return (
-            property?.type === 'Identifier' &&
-            property.name === 'createHash' &&
-            algorithm?.type === 'StringLiteral' &&
-            WEAK_ALGORITHMS.test(algorithm.value as string)
-      );
+      const property = getCreateHashProperty(getCallExpressionCallee(node));
+      const algorithm = getCallExpressionArgs(node)?.[0];
+      return isCreateHashProperty(property) && isWeakAlgorithmLiteral(algorithm);
 };
 
 const findWeakHashLines = (filePath: string, content: string): number[] => {

@@ -33,17 +33,22 @@ const isExecImport = (specifier: SourceNode): boolean => {
 const isNamespaceImport = (specifier: SourceNode): boolean =>
       specifier.type === 'ImportDefaultSpecifier' || specifier.type === 'ImportNamespaceSpecifier';
 
+const bindingSetForImportSpecifier = (
+      specifier: SourceNode,
+      bindings: ChildProcessBindings,
+): Set<string> | undefined =>
+      isExecImport(specifier)
+            ? bindings.directCalls
+            : isNamespaceImport(specifier)
+              ? bindings.namespaces
+              : undefined;
+
 const collectImportBinding = (specifier: SourceNode, bindings: ChildProcessBindings): void => {
       const name = localName(specifier);
       if (!name) {
             return;
       }
-      const bindingSet = isExecImport(specifier)
-            ? bindings.directCalls
-            : isNamespaceImport(specifier)
-              ? bindings.namespaces
-              : undefined;
-      bindingSet?.add(name);
+      bindingSetForImportSpecifier(specifier, bindings)?.add(name);
 };
 
 const collectFromImportDeclaration = (node: SourceNode, bindings: ChildProcessBindings): void => {
@@ -75,13 +80,19 @@ const collectDirectCallBindings = (id: SourceNode, bindings: ChildProcessBinding
       }
 };
 
+const namespaceNameFromDeclaratorId = (id: SourceNode | undefined): string | undefined =>
+      id?.type === 'Identifier' ? (id.name as string) : undefined;
+
+const destructuredBindingsFromDeclaratorId = (id: SourceNode | undefined): SourceNode | undefined =>
+      id?.type === 'ObjectPattern' ? id : undefined;
+
 const collectFromVariableDeclarator = (node: SourceNode, bindings: ChildProcessBindings): void => {
       if (!isRequireCall(node.init as SourceNode | undefined)) {
             return;
       }
       const id = node.id as SourceNode | undefined;
-      const namespaceName = id?.type === 'Identifier' ? (id.name as string) : undefined;
-      const destructuredBindings = id?.type === 'ObjectPattern' ? id : undefined;
+      const namespaceName = namespaceNameFromDeclaratorId(id);
+      const destructuredBindings = destructuredBindingsFromDeclaratorId(id);
       namespaceName && bindings.namespaces.add(namespaceName);
       destructuredBindings && collectDirectCallBindings(destructuredBindings, bindings);
 };
@@ -100,11 +111,8 @@ const collectChildProcessBindings = (sourceFile: SourceNode): ChildProcessBindin
       return bindings;
 };
 
-const isKnownChildProcessCallee = (callee: SourceNode | undefined, bindings: ChildProcessBindings): boolean => {
-      if (callee?.type === 'Identifier') {
-            return bindings.directCalls.has(callee.name as string);
-      }
-      if (callee?.type !== 'MemberExpression') {
+const isKnownChildProcessMemberCallee = (callee: SourceNode, bindings: ChildProcessBindings): boolean => {
+      if (callee.type !== 'MemberExpression') {
             return false;
       }
       const object = callee.object as SourceNode | undefined;
@@ -116,6 +124,13 @@ const isKnownChildProcessCallee = (callee: SourceNode | undefined, bindings: Chi
             object?.type === 'Identifier' &&
             bindings.namespaces.has(object.name as string)
       );
+};
+
+const isKnownChildProcessCallee = (callee: SourceNode | undefined, bindings: ChildProcessBindings): boolean => {
+      if (callee?.type === 'Identifier') {
+            return bindings.directCalls.has(callee.name as string);
+      }
+      return callee !== undefined && isKnownChildProcessMemberCallee(callee, bindings);
 };
 
 const isDynamicCommandArgument = (argument: SourceNode | undefined): boolean =>

@@ -84,14 +84,16 @@ const walkNestingBlock: NodeWalker = (node, depth, results) => {
       walkChildren(node, newDepth, results);
 };
 
+const selectNonFunctionWalker = (node: SourceNode): NodeWalker => {
+      return node.type === 'IfStatement'
+            ? walkIfChain
+            : NESTING_TYPES.has(node.type)
+              ? walkNestingBlock
+              : walkChildren;
+};
+
 const selectWalker = (node: SourceNode): NodeWalker => {
-      return FUNCTION_TYPES.has(node.type)
-            ? walkFunction
-            : node.type === 'IfStatement'
-              ? walkIfChain
-              : NESTING_TYPES.has(node.type)
-                ? walkNestingBlock
-                : walkChildren;
+      return FUNCTION_TYPES.has(node.type) ? walkFunction : selectNonFunctionWalker(node);
 };
 
 const walk: NodeWalker = (node, depth, results) => {
