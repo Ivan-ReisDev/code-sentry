@@ -20,6 +20,19 @@ const isThenCall = (node: SourceNode): boolean => {
       return callee?.type === 'MemberExpression' && memberPropertyName(callee) === 'then' && (args?.length ?? 0) < 2;
 };
 
+const chainMethodName = (
+      currentCall: SourceNode,
+      member: SourceNode | undefined,
+      nextCall: SourceNode | undefined,
+): string | undefined => {
+      const isChainMember =
+            member !== undefined &&
+            member.type === 'MemberExpression' &&
+            member.object === currentCall &&
+            isCallOf(nextCall, member);
+      return isChainMember ? memberPropertyName(member) : undefined;
+};
+
 const chainReachesCatch = (thenCall: SourceNode, ancestors: SourceNode[]): boolean => {
       let currentCall = thenCall;
       let i = 0;
@@ -27,12 +40,7 @@ const chainReachesCatch = (thenCall: SourceNode, ancestors: SourceNode[]): boole
       while (i < ancestors.length) {
             const member = ancestors.at(i);
             const nextCall = ancestors.at(i + 1);
-            const isChainMember =
-                  member !== undefined &&
-                  member.type === 'MemberExpression' &&
-                  member.object === currentCall &&
-                  isCallOf(nextCall, member);
-            const methodName = isChainMember ? memberPropertyName(member) : undefined;
+            const methodName = chainMethodName(currentCall, member, nextCall);
             const continuesChain = methodName === 'then' || methodName === 'finally';
 
             if (methodName === 'catch') {
