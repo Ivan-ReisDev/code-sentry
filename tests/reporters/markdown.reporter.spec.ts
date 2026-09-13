@@ -33,10 +33,18 @@ it('includes header info and summary counts per severity', () => {
       expect(md).toContain('**Arquivos analisados:** 5');
       expect(md).toContain('**Duração:** 100ms');
       expect(md).toContain('**Total de problemas:** 3');
-      expect(md).toContain('| Critical | 2 |');
-      expect(md).toContain('| High | 0 |');
-      expect(md).toContain('| Medium | 0 |');
-      expect(md).toContain('| Low | 1 |');
+      expect(md).toContain('| 🔴 Critical | 2 |');
+      expect(md).toContain('| 🟠 High | 0 |');
+      expect(md).toContain('| 🟡 Medium | 0 |');
+      expect(md).toContain('| 🔵 Low | 1 |');
+});
+
+it('shows the CodeSentry logo centered at the top of the report', () => {
+      const md = toMarkdownReport({ scannedFiles: 1, durationMs: 1, findings: [] }, fixedDate);
+
+      expect(md.indexOf('<p align="center"><img src="https://raw.githubusercontent.com/')).toBe(0);
+      expect(md).toContain('docs/assets/logo.png');
+      expect(md.indexOf('<p align="center"')).toBeLessThan(md.indexOf('# Relatório CodeSentry'));
 });
 
 it('groups findings by severity then by rule, sorted alphabetically', () => {
@@ -86,10 +94,10 @@ it('omits severity sections with no findings', () => {
             fixedDate,
       );
 
-      expect(md).not.toContain('## Critical');
-      expect(md).not.toContain('## High');
-      expect(md).not.toContain('## Medium');
-      expect(md).toContain('## Low');
+      expect(md).not.toContain('## 🔴 Critical');
+      expect(md).not.toContain('## 🟠 High');
+      expect(md).not.toContain('## 🟡 Medium');
+      expect(md).toContain('## 🔵 Low');
 });
 
 it('escapes pipe characters inside table cells', () => {
@@ -110,8 +118,8 @@ it('returns a report with all-zero summary and no severity sections when there a
       const md = toMarkdownReport({ scannedFiles: 3, durationMs: 1, findings: [] }, fixedDate);
 
       expect(md).toContain('**Total de problemas:** 0');
-      expect(md).toContain('| Critical | 0 |');
-      expect(md).not.toMatch(/^## (Critical|High|Medium|Low)/m);
+      expect(md).toContain('| 🔴 Critical | 0 |');
+      expect(md).not.toMatch(/^## [^\n]*(Critical|High|Medium|Low)/m);
 });
 
 it('includes the dependency-audit note in the header when dependencyAudit is false', () => {
@@ -136,6 +144,8 @@ it('lists the dependencies checked against OSV.dev, with how many of how many', 
       );
 
       expect(md).toContain('## Dependências verificadas no OSV.dev (2/3)');
+      expect(md).toContain('<details>');
+      expect(md).toContain('<summary>Ver lista completa</summary>');
       expect(md).toContain('- chalk@6.0.0');
       expect(md).toContain('- lodash@4.17.15');
 });
@@ -160,4 +170,120 @@ it('includes a warnings section when the result carries warnings', () => {
 
       expect(md).toContain('## Avisos');
       expect(md).toContain(ZERO_SEMGREP_COVERAGE_WARNING);
+});
+
+it('renders dependency findings in a structured OSV and NVD section', () => {
+      const md = toMarkdownReport(
+            {
+                  scannedFiles: 1,
+                  durationMs: 1,
+                  findings: [
+                        finding({
+                              ruleId: 'dependency-audit',
+                              file: 'package-lock.json',
+                              dependency: {
+                                    package: { name: 'pkg', installedVersion: '1.0.0', fixedVersions: ['1.0.1'] },
+                                    advisory: {
+                                          source: 'osv',
+                                          id: 'GHSA-aaaa-bbbb-cccc',
+                                          aliases: ['CVE-2026-12345'],
+                                          summary: 'same description',
+                                    },
+                                    nvd: [
+                                          {
+                                                status: 'found',
+                                                cveId: 'CVE-2026-12345',
+                                                data: {
+                                                      id: 'CVE-2026-12345',
+                                                      description: 'same description',
+                                                      cwes: ['CWE-78'],
+                                                      references: [
+                                                            {
+                                                                  url: 'https://example.com',
+                                                                  source: 'vendor',
+                                                                  tags: ['Patch'],
+                                                            },
+                                                      ],
+                                                      cisa: {
+                                                            kev: {
+                                                                  addedAt: '2026-01-01',
+                                                                  vulnerabilityName: 'Example vulnerability',
+                                                            },
+                                                            ssvc: { exploitation: 'active' },
+                                                      },
+                                                },
+                                          },
+                                    ],
+                              },
+                        }),
+                  ],
+            },
+            fixedDate,
+      );
+
+      expect(md).toContain('## Dependências vulneráveis');
+      expect(md).toContain('| Pacote | Severidade | Advisory | CVE(s) | CVSS | Corrigir para |');
+      expect(md).toContain('| pkg@1.0.0 | 🟠 High | GHSA-aaaa-bbbb-cccc | CVE-2026-12345 | — | 1.0.1 |');
+      expect(md).toContain('<details>');
+      expect(md).toContain('<summary>🟠 High <strong>pkg@1.0.0</strong></summary>');
+      expect(md).toContain('#### CVE-2026-12345');
+      expect(md).toContain('https://example.com');
+      expect(md).toContain('vendor, Patch');
+      expect(md).toContain('Nome CISA');
+      expect(md).toContain('CISA SSVC');
+      expect(md.match(/same description/g)).toHaveLength(1);
+      expect(md).not.toContain('| package-lock.json |');
+});
+
+it('shows the CVSS score in the dependency summary table when NVD found one', () => {
+      const md = toMarkdownReport(
+            {
+                  scannedFiles: 1,
+                  durationMs: 1,
+                  findings: [
+                        finding({
+                              ruleId: 'dependency-audit',
+                              file: 'package-lock.json',
+                              severity: 'critical',
+                              dependency: {
+                                    package: { name: 'pkg', installedVersion: '1.0.0', fixedVersions: [] },
+                                    advisory: { source: 'osv', id: 'GHSA-aaaa-bbbb-cccc', aliases: ['CVE-2026-12345'] },
+                                    nvd: [
+                                          {
+                                                status: 'found',
+                                                cveId: 'CVE-2026-12345',
+                                                data: {
+                                                      id: 'CVE-2026-12345',
+                                                      cwes: [],
+                                                      references: [],
+                                                      cvss: { score: 9.8, version: '3.1', vectorString: 'CVSS:3.1/AV:N' },
+                                                },
+                                          },
+                                    ],
+                              },
+                        }),
+                  ],
+            },
+            fixedDate,
+      );
+
+      expect(md).toContain('| pkg@1.0.0 | 🔴 Critical | GHSA-aaaa-bbbb-cccc | CVE-2026-12345 | 9.8 | — |');
+});
+
+it('includes dependency and NVD coverage in the report header', () => {
+      const md = toMarkdownReport(
+            {
+                  scannedFiles: 1,
+                  durationMs: 1,
+                  findings: [],
+                  engines: {
+                        dependencyAudit: 3,
+                        nvd: { total: 2, enriched: 1, notFound: 1, failed: 0, cacheHits: 1 },
+                  },
+            },
+            fixedDate,
+      );
+
+      expect(md).toContain('**Dependências consideradas:** 3');
+      expect(md).toContain('**Cobertura NVD:** 1/2 enriquecidos; 1 sem resultado; 0 falhas; 1 cache hits');
 });

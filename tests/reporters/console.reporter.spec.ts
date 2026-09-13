@@ -38,7 +38,7 @@ it('prints the dependency-audit note on a report with findings', () => {
       expect(logSpy.mock.calls.flat().join('\n')).toContain(DEPENDENCY_AUDIT_NOTE);
 });
 
-it('prints how many packages npm audit checked on a clean report', () => {
+it('prints how many dependency packages were considered on a clean report', () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const result: ScanResult = {
@@ -49,10 +49,10 @@ it('prints how many packages npm audit checked on a clean report', () => {
       };
       printConsoleReport(result);
 
-      expect(logSpy.mock.calls.flat().join('\n')).toContain('Dependency audit: 363 pacote(s) via npm audit');
+      expect(logSpy.mock.calls.flat().join('\n')).toContain('Dependency audit: 363 pacote(s) considerado(s)');
 });
 
-it('prints how many packages npm audit checked on a report with findings', () => {
+it('prints how many dependency packages were considered on a report with findings', () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const result: ScanResult = {
@@ -63,7 +63,7 @@ it('prints how many packages npm audit checked on a report with findings', () =>
       };
       printConsoleReport(result);
 
-      expect(logSpy.mock.calls.flat().join('\n')).toContain('Dependency audit: 12 pacote(s) via npm audit');
+      expect(logSpy.mock.calls.flat().join('\n')).toContain('Dependency audit: 12 pacote(s) considerado(s)');
 });
 
 it('does not mention dependency audit coverage when it was skipped or failed', () => {
@@ -121,4 +121,100 @@ it('prints the zero-semgrep-coverage warning when present', () => {
       printConsoleReport(result);
 
       expect(logSpy.mock.calls.flat().join('\n')).toContain(ZERO_SEMGREP_COVERAGE_WARNING);
+});
+
+it('prints structured OSV and NVD dependency details without dropping the OSV finding', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const result: ScanResult = {
+            scannedFiles: 1,
+            durationMs: 10,
+            engines: {
+                  dependencyAudit: 1,
+                  nvd: { total: 1, enriched: 1, notFound: 0, failed: 0, cacheHits: 0 },
+            },
+            findings: [
+                  {
+                        ruleId: 'dependency-audit',
+                        message: 'summary',
+                        file: 'package-lock.json',
+                        line: 1,
+                        severity: 'critical',
+                        dependency: {
+                              package: { name: 'example', installedVersion: '1.0.0', fixedVersions: ['1.0.2'] },
+                              advisory: {
+                                    source: 'osv',
+                                    id: 'GHSA-aaaa-bbbb-cccc',
+                                    aliases: ['CVE-2026-12345'],
+                                    summary: 'OSV summary',
+                              },
+                              nvd: [
+                                    {
+                                          status: 'found',
+                                          cveId: 'CVE-2026-12345',
+                                          data: {
+                                                id: 'CVE-2026-12345',
+                                                cvss: {
+                                                      version: '3.1',
+                                                      score: 9.8,
+                                                      severity: 'CRITICAL',
+                                                      vectorString: 'CVSS:3.1/example',
+                                                      attackVector: 'NETWORK',
+                                                },
+                                                cwes: ['CWE-78'],
+                                                references: [],
+                                                cisa: {
+                                                      kev: {
+                                                            addedAt: '2026-01-01',
+                                                            vulnerabilityName: 'Example vulnerability',
+                                                      },
+                                                      ssvc: { exploitation: 'active', technicalImpact: 'total' },
+                                                },
+                                          },
+                                    },
+                              ],
+                        },
+                  },
+            ],
+      };
+
+      printConsoleReport(result);
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('Pacote: example');
+      expect(output).toContain('CVE-2026-12345');
+      expect(output).toContain('CVSS: 9.8');
+      expect(output).toContain('CWE: CWE-78');
+      expect(output).toContain('Nome CISA: Example vulnerability');
+      expect(output).toContain('CISA SSVC: exploração=active; impacto técnico=total');
+      expect(output).toContain('Fontes: OSV, NVD');
+      expect(output).toContain('NVD: 1 CVE(s)');
+});
+
+it('distinguishes NVD not-found from an NVD consultation error', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const dependency = {
+            package: { name: 'example', installedVersion: '1.0.0', fixedVersions: [] },
+            advisory: { source: 'osv' as const, id: 'GHSA-aaaa-bbbb-cccc', aliases: [] },
+            nvd: [
+                  { status: 'not-found' as const, cveId: 'CVE-2026-10001' },
+                  { status: 'error' as const, cveId: 'CVE-2026-10002', error: { kind: 'timeout' as const } },
+            ],
+      };
+      printConsoleReport({
+            scannedFiles: 1,
+            durationMs: 1,
+            findings: [
+                  {
+                        ruleId: 'dependency-audit',
+                        message: 'x',
+                        file: 'package-lock.json',
+                        line: 1,
+                        severity: 'medium',
+                        dependency,
+                  },
+            ],
+      });
+
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('NVD: sem resultado');
+      expect(output).toContain('NVD: falha ao consultar (timeout)');
 });
