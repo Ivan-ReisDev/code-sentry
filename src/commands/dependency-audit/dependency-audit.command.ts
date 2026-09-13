@@ -26,7 +26,7 @@ export const registerDependencyAuditCommand = (program: Command): void => {
       program
             .command('dependency-audit')
             .description(
-                  'Audita as dependências do projeto contra vulnerabilidades conhecidas (via "npm audit"; requer npm no PATH e acesso à rede)',
+                  'Audita as dependências do projeto contra vulnerabilidades conhecidas (via "npm audit" e OSV.dev; requer npm no PATH e acesso à rede)',
             )
             .argument('[path]', 'diretório do projeto a ser auditado', '.')
             .option('--json', 'exibe o resultado em JSON')

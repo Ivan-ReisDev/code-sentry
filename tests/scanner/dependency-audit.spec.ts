@@ -1,5 +1,13 @@
 import { expect, it } from 'vitest';
-import { mapAuditReportToFindings, type NpmAuditReport } from '../../src/scanner/dependency-audit.js';
+import type { LockedPackage } from '../../src/scanner/package-lock-parser.js';
+import type { OsvVulnerability } from '../../src/scanner/osv-client.js';
+import {
+      auditPackagesWithOsv,
+      mapAuditReportToFindings,
+      mapOsvFindingsToRuleFindings,
+      normalizeNpmAuditReport,
+      type NpmAuditReport,
+} from '../../src/scanner/dependency-audit.js';
 
 it('maps a vulnerability from an npm audit report to a finding', () => {
       const report: NpmAuditReport = {
@@ -56,4 +64,188 @@ it('returns no findings when there are no vulnerabilities', () => {
       const findings = mapAuditReportToFindings({ vulnerabilities: {} });
 
       expect(findings).toHaveLength(0);
+});
+
+it('suggests updating to the exact package@version npm audit recommends', () => {
+      const report: NpmAuditReport = {
+            vulnerabilities: {
+                  lodash: {
+                        name: 'lodash',
+                        severity: 'high',
+                        range: '<4.17.21',
+                        fixAvailable: { name: 'lodash', version: '4.17.21' },
+                        via: [{ title: 'Prototype Pollution in lodash' }],
+                  },
+            },
+      };
+
+      expect(mapAuditReportToFindings(report)[0].message).toContain('atualize para lodash@4.17.21');
+});
+
+it('suggests updating out of the vulnerable range when npm audit only confirms a fix exists', () => {
+      const report: NpmAuditReport = {
+            vulnerabilities: {
+                  lodash: { name: 'lodash', severity: 'high', range: '<4.17.21', fixAvailable: true, via: [] },
+            },
+      };
+
+      expect(mapAuditReportToFindings(report)[0].message).toContain('<4.17.21');
+});
+
+it('is honest that there is no fix yet when npm audit reports fixAvailable: false', () => {
+      const report: NpmAuditReport = {
+            vulnerabilities: {
+                  lodash: { name: 'lodash', severity: 'high', range: '*', fixAvailable: false, via: [] },
+            },
+      };
+
+      expect(mapAuditReportToFindings(report)[0].message).toContain('sem correção disponível ainda');
+});
+
+it('normalizeNpmAuditReport keeps a valid npm audit report unchanged', () => {
+      const raw = {
+            vulnerabilities: {
+                  lodash: { name: 'lodash', severity: 'high', range: '*', fixAvailable: false, via: [] },
+            },
+      };
+
+      const { report, warning } = normalizeNpmAuditReport(raw);
+
+      expect(report.vulnerabilities).toBe(raw.vulnerabilities);
+      expect(warning).toBeUndefined();
+});
+
+it('normalizeNpmAuditReport turns a failed npm audit response into an empty report with a warning', () => {
+      const raw = { error: { code: 'E404', summary: 'audit endpoint returned an error' } };
+
+      const { report, warning } = normalizeNpmAuditReport(raw);
+
+      expect(report.vulnerabilities).toEqual({});
+      expect(warning).toContain('npm audit');
+      expect(warning).toContain('audit endpoint returned an error');
+});
+
+it('normalizeNpmAuditReport turns a report with vulnerabilities: null into an empty report with a warning', () => {
+      const { report, warning } = normalizeNpmAuditReport({ vulnerabilities: null });
+
+      expect(report.vulnerabilities).toEqual({});
+      expect(warning).toBeDefined();
+});
+
+const lodashRedosVuln: OsvVulnerability = {
+      id: 'GHSA-29mw-wpgm-hmr9',
+      summary: 'Regular Expression Denial of Service (ReDoS) in lodash',
+      database_specific: { severity: 'MODERATE' },
+      affected: [
+            {
+                  package: { name: 'lodash', ecosystem: 'npm' },
+                  ranges: [{ type: 'SEMVER', events: [{ introduced: '4.0.0' }, { fixed: '4.17.21' }] }],
+            },
+            {
+                  package: { name: 'lodash.trimend', ecosystem: 'npm' },
+                  ranges: [{ type: 'SEMVER', events: [{ introduced: '4.0.0' }, { last_affected: '4.5.1' }] }],
+            },
+      ],
+};
+
+it('excludes OSV findings for packages npm audit already flagged', () => {
+      const findings = mapOsvFindingsToRuleFindings(
+            [{ name: 'lodash', version: '4.17.15' }],
+            new Map([['lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
+            new Map([['GHSA-29mw-wpgm-hmr9', lodashRedosVuln]]),
+            new Set(['lodash']),
+      );
+
+      expect(findings).toHaveLength(0);
+});
+
+it('keeps OSV findings for packages npm audit did not flag, with the fix version from OSV itself', () => {
+      const findings = mapOsvFindingsToRuleFindings(
+            [{ name: 'lodash', version: '4.17.15' }],
+            new Map([['lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
+            new Map([['GHSA-29mw-wpgm-hmr9', lodashRedosVuln]]),
+            new Set(),
+      );
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({
+            ruleId: 'dependency-audit',
+            file: 'package-lock.json',
+            line: 1,
+            severity: 'medium',
+      });
+      expect(findings[0].message).toContain('GHSA-29mw-wpgm-hmr9');
+      expect(findings[0].message).toContain('lodash@4.17.15');
+      expect(findings[0].message).toContain('atualize para 4.17.21');
+});
+
+it('falls back to an honest "no fix published" message when OSV has no fixed event for that package', () => {
+      const findings = mapOsvFindingsToRuleFindings(
+            [{ name: 'lodash.trimend', version: '4.5.1' }],
+            new Map([['lodash.trimend@4.5.1', ['GHSA-29mw-wpgm-hmr9']]]),
+            new Map([['GHSA-29mw-wpgm-hmr9', lodashRedosVuln]]),
+            new Set(),
+      );
+
+      expect(findings[0].message).toContain('nenhuma versão corrigida publicada pelo OSV.dev ainda');
+});
+
+it('auditPackagesWithOsv queries OSV for the locked packages and merges details into findings', async () => {
+      const lockedPackages: LockedPackage[] = [{ name: 'lodash', version: '4.17.15' }];
+      const fetchImpl = async (url: string) => {
+            if (url.includes('querybatch')) {
+                  return { ok: true, json: async () => ({ results: [{ vulns: [{ id: 'GHSA-29mw-wpgm-hmr9' }] }] }) };
+            }
+            return { ok: true, json: async () => lodashRedosVuln };
+      };
+
+      const { findings, warning } = await auditPackagesWithOsv(lockedPackages, new Set(), fetchImpl);
+
+      expect(warning).toBeUndefined();
+      expect(findings).toHaveLength(1);
+      expect(findings[0].message).toContain('GHSA-29mw-wpgm-hmr9');
+});
+
+it('auditPackagesWithOsv surfaces a warning instead of throwing when OSV is unreachable', async () => {
+      const fetchImpl = async () => {
+            throw new Error('network down');
+      };
+
+      const { findings, warning } = await auditPackagesWithOsv(
+            [{ name: 'lodash', version: '4.17.15' }],
+            new Set(),
+            fetchImpl,
+      );
+
+      expect(findings).toHaveLength(0);
+      expect(warning).toContain('OSV.dev');
+});
+
+it('auditPackagesWithOsv reports every successfully queried package as checked', async () => {
+      const lockedPackages: LockedPackage[] = [
+            { name: 'lodash', version: '4.17.15' },
+            { name: 'chalk', version: '6.0.0' },
+      ];
+      const fetchImpl = async (url: string) => {
+            if (url.includes('querybatch')) {
+                  return { ok: true, json: async () => ({ results: [{ vulns: [{ id: 'GHSA-29mw-wpgm-hmr9' }] }, {}] }) };
+            }
+            return { ok: true, json: async () => lodashRedosVuln };
+      };
+
+      const { checkedPackages } = await auditPackagesWithOsv(lockedPackages, new Set(), fetchImpl);
+
+      expect(checkedPackages).toEqual(lockedPackages);
+});
+
+it('auditPackagesWithOsv reports no checked packages when the OSV batch query fails entirely', async () => {
+      const fetchImpl = async () => ({ ok: false, status: 503, json: async () => ({}) });
+
+      const { checkedPackages } = await auditPackagesWithOsv(
+            [{ name: 'lodash', version: '4.17.15' }],
+            new Set(),
+            fetchImpl,
+      );
+
+      expect(checkedPackages).toEqual([]);
 });

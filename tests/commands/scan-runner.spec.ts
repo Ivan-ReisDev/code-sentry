@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { scanAndReport } from '../../src/commands/scan/scan-runner.js';
+import { runDependencyAudit } from '../../src/scanner/dependency-audit.js';
 import type { Rule, RuleFinding } from '../../src/rules/rule.interface.js';
+
+vi.mock('../../src/scanner/dependency-audit.js', () => ({ runDependencyAudit: vi.fn() }));
 
 const manyFindingsRule = (count: number): Rule => ({
       id: 'fake-rule',
@@ -23,6 +26,7 @@ let dir: string;
 beforeEach(async () => {
       dir = await mkdtemp(join(tmpdir(), 'codesentry-'));
       await writeFile(join(dir, 'a.ts'), 'const a = 1;');
+      vi.mocked(runDependencyAudit).mockReset();
 });
 
 afterEach(async () => {
@@ -84,4 +88,51 @@ it('surfaces the root cause of a scan failure instead of only a generic wrapper 
 
       const loggedError = errorSpy.mock.calls.flat().join('\n');
       expect(loggedError).toContain('ENOENT');
+});
+
+it('does not run the dependency audit when deps is not requested', async () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await scanAndReport(dir, [], 'test', { json: true });
+
+      expect(runDependencyAudit).not.toHaveBeenCalled();
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('"dependencyAudit": false');
+});
+
+it('runs the dependency audit and merges its findings when deps is requested', async () => {
+      vi.mocked(runDependencyAudit).mockResolvedValue({
+            scannedFiles: 1,
+            findings: [
+                  {
+                        ruleId: 'dependency-audit',
+                        message: 'vulnerável',
+                        file: 'package.json',
+                        line: 1,
+                        severity: 'high',
+                  },
+            ],
+            durationMs: 5,
+            engines: { dependencyAudit: 3 },
+      });
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await scanAndReport(dir, [], 'test', { json: true, deps: true });
+
+      expect(runDependencyAudit).toHaveBeenCalledWith(dir);
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('vulnerável');
+      expect(output).toContain('"dependencyAudit": 3');
+});
+
+it('turns a dependency audit failure into a warning instead of failing the whole scan', async () => {
+      vi.mocked(runDependencyAudit).mockRejectedValue(new Error('npm ausente'));
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await scanAndReport(dir, [], 'test', { json: true, deps: true });
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      const output = logSpy.mock.calls.flat().join('\n');
+      expect(output).toContain('Auditoria de dependências falhou: npm ausente.');
 });

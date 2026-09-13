@@ -24,7 +24,9 @@ dados `command → scanner → rules → reporter`.
 │   │   ├── ignore-patterns.ts        # fonte única das exclusões, usada pelos dois motores
 │   │   ├── run-with-concurrency-limit.ts
 │   │   ├── scan-result.ts            # ScanResult, ScanEngines, mergeScanResults
-│   │   ├── dependency-audit.ts       # wrapper de `npm audit --json`
+│   │   ├── dependency-audit.ts       # combina `npm audit --json` com OSV.dev
+│   │   ├── package-lock-parser.ts    # enumera dependências reais via package-lock.json
+│   │   ├── osv-client.ts             # cliente HTTP do OSV.dev (querybatch + detalhe por id)
 │   │   ├── semgrep.ts                # executa o Semgrep embutido e mapeia o JSON
 │   │   ├── semgrep-runtime.ts        # resolve o runtime (python/semgrep) da plataforma
 │   │   └── semgrep-rules.ts          # resolve o ruleset OWASP embutido
@@ -80,7 +82,7 @@ dados `command → scanner → rules → reporter`.
 | Pasta       | Responsabilidade                                                                                                                                                                                     |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `commands`  | Recebe e trata os comandos da CLI. Cada comando mora no seu próprio subdiretório (`<nome>/<nome>.command.ts`); a maioria das regras também tem um comando standalone que roda só ela.                |
-| `scanner`   | Descobre arquivos, aplica as `rules/` sobre cada um (motor nativo), roda o Semgrep embutido e o `npm audit`, e une os resultados em um `ScanResult`.                                                 |
+| `scanner`   | Descobre arquivos, aplica as `rules/` sobre cada um (motor nativo), roda o Semgrep embutido e a auditoria de dependências (`npm audit` + OSV.dev), e une os resultados em um `ScanResult`.           |
 | `parser`    | Parsing de código-fonte (`@babel/parser`) e travessia de AST compartilhados por várias regras — não depende de `tsconfig`/config do projeto analisado.                                               |
 | `rules`     | As regras de análise nativas. Cada uma implementa `rule.interface.ts`; `lib/` guarda helpers reutilizados entre elas (travessia com ancestrais, contagem de statements, execução de plugins ESLint). |
 | `reporters` | Exibe ou exporta os resultados (console, JSON, Markdown) — cada um só recebe um `ScanResult` pronto.                                                                                                 |
@@ -94,11 +96,12 @@ dados `command → scanner → rules → reporter`.
 
 1. `index.ts` inicia a CLI chamando `cli.ts`.
 2. `cli.ts` registra todos os comandos (`commands/`) no `Command` do Commander e lê a versão do `package.json` em tempo de execução.
-3. `scan.command.ts` aciona `scan-runner.ts`, que roda dois motores em sequência e funde o resultado:
+3. `scan.command.ts` aciona `scan-runner.ts`, que roda os motores em sequência e funde o resultado:
       - **Motor nativo** (`scanner/scanner.ts`): `file-finder.ts` localiza os arquivos JS/TS/JSX/TSX, pulando sempre `node_modules`, `.git`, `dist`, `.next` — nunca descendo neles, mesmo que estejam corrompidos ou com caminho longo demais —, e cada regra de `rules/` roda sobre o conteúdo via `run-with-concurrency-limit.ts`.
       - **Semgrep embutido** (`scanner/semgrep.ts`): roda o ruleset `p/owasp-top-ten` (resolvido por `semgrep-rules.ts`) usando o runtime da plataforma atual (resolvido por `semgrep-runtime.ts`), e mapeia o JSON de saída para o mesmo formato de finding.
-      - **Arquivos de teste** (`scanner/ignore-patterns.ts`): por padrão, nenhum dos dois motores analisa diretórios chamados `tests`/`test`/`__tests__` nem arquivos com sufixo `.spec.*`/`.test.*`, em qualquer profundidade — essa é a única fonte de verdade consultada tanto por `file-finder.ts` quanto pela lista de `--exclude` passada ao Semgrep. A flag `--tests` (presente em `scan` e em todo comando individual por regra) desliga essa exclusão.
-      - `scan-result.ts#mergeScanResults` une os dois em um único `ScanResult`, com a cobertura de cada motor em `engines`.
+      - **Arquivos de teste** (`scanner/ignore-patterns.ts`): por padrão, nenhum dos dois motores acima analisa diretórios chamados `tests`/`test`/`__tests__` nem arquivos com sufixo `.spec.*`/`.test.*`, em qualquer profundidade — essa é a única fonte de verdade consultada tanto por `file-finder.ts` quanto pela lista de `--exclude` passada ao Semgrep. A flag `--tests` (presente em `scan` e em todo comando individual por regra) desliga essa exclusão.
+      - `scan-result.ts#mergeScanResults` une motor nativo e Semgrep em um único `ScanResult`, com a cobertura de cada motor em `engines`.
+      - **Auditoria de dependências** (`scanner/dependency-audit.ts`): por padrão, `scan` também roda `npm audit` + OSV.dev (ver [ADR 0005](adr/0005-osv-dependency-database.md)) e funde os achados no mesmo `ScanResult` — exige rede. A flag `--no-deps` pula essa etapa para um scan 100% offline; os ~30 comandos individuais por regra (`weak-hash-algorithm`, `jwt-no-expiration`, etc.) nunca rodam essa auditoria.
 4. O resultado é passado para um `reporter` (`console.reporter.ts`, `json.reporter.ts` ou, quando há mais de 20 problemas, também `markdown.reporter.ts`), que exibe ou exporta o relatório final.
 5. Falhas em qualquer etapa sobem como `Error` encadeados (`cause`); `errors.ts#formatErrorChain` percorre essa cadeia inteira ao reportar o erro final na CLI, em vez de mostrar só a mensagem do wrapper mais externo.
 

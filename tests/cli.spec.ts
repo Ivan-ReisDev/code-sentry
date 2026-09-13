@@ -25,6 +25,16 @@ it('registers --tests on every scan/rule command, except commands that never rea
       expect(commandsMissingTestsOption).toEqual([]);
 });
 
+it('registers --no-deps on scan only, since it is the only command that should run the dependency audit', () => {
+      const program = createCli();
+
+      const commandsWithDepsOption = program.commands
+            .filter((command) => command.options.some((option) => option.flags.includes('--no-deps')))
+            .map((command) => command.name());
+
+      expect(commandsWithDepsOption).toEqual(['scan']);
+});
+
 it('registers standalone commands for weak-cipher-mode and hardcoded-authorization-value', () => {
       const program = createCli();
 

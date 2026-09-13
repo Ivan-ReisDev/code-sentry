@@ -26,7 +26,11 @@ export const registerScanCommand = (program: Command): void => {
                   .description('Analisa um diretório em busca de vulnerabilidades e problemas de qualidade')
                   .argument('[path]', 'diretório a ser analisado', '.')
                   .option('--concurrency <n>', 'limita arquivos processados em paralelo', parseConcurrency)
-                  .option('--config <file>', 'usa um ruleset Semgrep YAML local', parseLocalSemgrepConfig),
+                  .option('--config <file>', 'usa um ruleset Semgrep YAML local', parseLocalSemgrepConfig)
+                  .option(
+                        '--no-deps',
+                        'não inclui a auditoria de dependências (npm audit + OSV.dev) neste scan — permite rodar offline',
+                  ),
       ).action((path: string, options: ScanOutputOptions) =>
             scanAndReport(path, allRules, 'Scanning files...', { ...options, semgrep: true }),
       );

@@ -6,12 +6,15 @@ export interface ScanResult {
       durationMs: number;
       engines?: ScanEngines;
       warnings?: string[];
+      /** "name@version" for every package OSV.dev actually returned an answer for — see `engines.osv` for the checked/total counts. */
+      osvCheckedPackages?: string[];
 }
 
 export interface ScanEngines {
       codesentry?: number;
       semgrep?: number;
-      dependencyAudit?: false;
+      dependencyAudit?: number | false;
+      osv?: { checked: number; total: number };
 }
 
 export const DEPENDENCY_AUDIT_NOTE =
@@ -30,9 +33,12 @@ export const mergeScanResults = (nativeResult: ScanResult, semgrepResult: ScanRe
       },
 });
 
-export const finalizeScanResult = (result: ScanResult): ScanResult => ({
+export const finalizeScanResult = (
+      result: ScanResult,
+      dependencyAuditCoverage: number | false = false,
+): ScanResult => ({
       ...result,
-      engines: { ...result.engines, dependencyAudit: false },
+      engines: { ...result.engines, dependencyAudit: dependencyAuditCoverage },
       warnings:
             result.engines?.semgrep === 0
                   ? [...(result.warnings ?? []), ZERO_SEMGREP_COVERAGE_WARNING]

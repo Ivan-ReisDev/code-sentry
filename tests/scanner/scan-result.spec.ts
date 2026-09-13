@@ -1,9 +1,5 @@
 import { expect, it } from 'vitest';
-import {
-      finalizeScanResult,
-      mergeScanResults,
-      ZERO_SEMGREP_COVERAGE_WARNING,
-} from '../../src/scanner/scan-result.js';
+import { finalizeScanResult, mergeScanResults, ZERO_SEMGREP_COVERAGE_WARNING } from '../../src/scanner/scan-result.js';
 
 it('keeps native file counting while exposing Semgrep coverage separately', () => {
       const result = mergeScanResults(
@@ -55,4 +51,16 @@ it('does not warn when semgrep was not run at all', () => {
       const result = finalizeScanResult({ scannedFiles: 2, findings: [], durationMs: 10 });
 
       expect(result.warnings ?? []).not.toContain(ZERO_SEMGREP_COVERAGE_WARNING);
+});
+
+it('marks dependencyAudit with a coverage count when the audit engine ran', () => {
+      const result = finalizeScanResult({ scannedFiles: 2, findings: [], durationMs: 10 }, 12);
+
+      expect(result.engines).toEqual({ dependencyAudit: 12 });
+});
+
+it('marks dependencyAudit as false when the audit was explicitly skipped', () => {
+      const result = finalizeScanResult({ scannedFiles: 2, findings: [], durationMs: 10 }, false);
+
+      expect(result.engines).toEqual({ dependencyAudit: false });
 });

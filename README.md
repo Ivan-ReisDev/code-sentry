@@ -16,7 +16,7 @@ Semgrep CE para as linguagens suportadas por ele.
 
 ## O que o CodeSentry faz
 
-Rodando `codesentry scan` num projeto, dois motores de análise trabalham
+Rodando `codesentry scan` num projeto, três motores de análise trabalham
 juntos e o resultado sai unificado em um único relatório:
 
 - **Motor nativo** — regras próprias em TypeScript, sem dependências
@@ -29,6 +29,12 @@ juntos e o resultado sai unificado em um único relatório:
   as linguagens que o Semgrep suporta (não só JS/TS), cobrindo os riscos
   do OWASP Top 10 de forma mais ampla que regras hand-rolled sozinhas
   conseguiriam.
+- **Auditoria de dependências** (`npm audit` + [OSV.dev](https://osv.dev)) —
+  identifica vulnerabilidades conhecidas nas dependências reais do
+  projeto (via `package-lock.json`), com a sugestão de correção vindo
+  diretamente do banco consultado. Roda por padrão a partir desta versão
+  e exige rede; use `--no-deps` para um scan 100% offline. Ver
+  [ADR 0005](docs/adr/0005-osv-dependency-database.md).
 
 Cada achado no relatório mostra o arquivo, a linha, a severidade e qual
 motor encontrou o problema (prefixo `semgrep/` para achados do Semgrep).
@@ -141,12 +147,26 @@ codesentry scan . --json
 codesentry scan . --concurrency 4
 codesentry scan . --config ./rules/security.yml
 codesentry scan . --tests
+codesentry scan . --no-deps
 ```
 
 O Semgrep CE embutido é executado automaticamente depois das regras nativas,
 usando um snapshot local do ruleset OWASP e `--metrics=off`. O comando não
 consulta a Semgrep Registry, não envia métricas e não requer internet após a
 instalação.
+
+Por padrão, `scan` também roda a auditoria de dependências (`npm audit` +
+OSV.dev) e funde os achados no mesmo relatório — isso exige `npm` no `PATH`
+e acesso à rede. Use `--no-deps` para pular essa etapa e manter o scan
+100% offline (CI sem egress, ambientes air-gapped). Ver
+[ADR 0005](docs/adr/0005-osv-dependency-database.md).
+
+O console mostra quantos pacotes o `npm audit` cobriu e quantos deles o
+OSV.dev conseguiu verificar de fato (`OSV.dev: 360/363 verificados`, por
+exemplo — a diferença indica pacotes cuja consulta falhou, reportados
+também como aviso). No relatório Markdown gerado automaticamente (mais de
+20 problemas), a lista completa de dependências verificadas no OSV.dev
+(`nome@versão`) aparece numa seção própria ao final do arquivo.
 
 ### Versões e atualização dos motores
 
@@ -224,7 +244,7 @@ codesentry xss ./src --json          # possíveis XSS (innerHTML, document.write
 codesentry unsafe-sql ./src          # SQL injection por concatenação
 codesentry command-injection ./src   # child_process com entrada não sanitizada
 codesentry weak-hash-algorithm ./src # uso de MD5/SHA-1 para hashing sensível
-codesentry dependency-audit .        # `npm audit` das dependências do projeto (sem --tests: não lê arquivos-fonte)
+codesentry dependency-audit .        # `npm audit` + OSV.dev nas dependências do projeto (sem --tests: não lê arquivos-fonte)
 ```
 
 Assim como em `scan`, `--tests` inclui arquivos de teste na análise (por

@@ -7,6 +7,7 @@ import { printConsoleReport } from '../../reporters/console.reporter.js';
 import { toJsonReport } from '../../reporters/json.reporter.js';
 import { toMarkdownReport } from '../../reporters/markdown.reporter.js';
 import type { Rule } from '../../rules/rule.interface.js';
+import { runDependencyAudit } from '../../scanner/dependency-audit.js';
 import { finalizeScanResult, mergeScanResults, type ScanResult } from '../../scanner/scan-result.js';
 import { runScan } from '../../scanner/scanner.js';
 import { runBundledSemgrep } from '../../scanner/semgrep.js';
@@ -19,6 +20,15 @@ export interface ScanOutputOptions {
       tests?: boolean;
       /** Internal: scan command always enables the bundled Semgrep engine. */
       semgrep?: boolean;
+      /**
+       * Internal: opt-in only, like `semgrep` above — NOT "on unless false".
+       * `scanAndReport`/`runScanEngines` are reused by ~30 individual per-rule
+       * commands (weak-hash-algorithm, jwt-no-expiration, command-injection, ...),
+       * none of which should start running "npm audit"/OSV.dev. Only the `scan`
+       * command sets this, via its `--no-deps` flag (Commander defaults it to
+       * `true` there, `false` when `--no-deps` is passed).
+       */
+      deps?: boolean;
 }
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'erro desconhecido');
@@ -51,17 +61,48 @@ const writeMarkdownReportIfNeeded = async (result: ScanResult, targetDir: string
       }
 };
 
-const runScanEngines = async (path: string, rules: Rule[], options: ScanOutputOptions): Promise<ScanResult> => {
+const runNativeAndSemgrep = async (path: string, rules: Rule[], options: ScanOutputOptions): Promise<ScanResult> => {
       try {
             const includeTests = options.tests ?? false;
             const nativeResult = await runScan(path, rules, options.concurrency, includeTests);
-            if (!options.semgrep) {
-                  return finalizeScanResult(nativeResult);
-            }
-            const semgrepResult = await runBundledSemgrep(path, undefined, options.config, undefined, includeTests);
-            return finalizeScanResult(mergeScanResults(nativeResult, semgrepResult));
+            return options.semgrep
+                  ? mergeScanResults(
+                          nativeResult,
+                          await runBundledSemgrep(path, undefined, options.config, undefined, includeTests),
+                    )
+                  : nativeResult;
       } catch (error) {
             throw new Error(`Falha durante a análise: ${errorMessage(error)}`, { cause: error });
+      }
+};
+
+const runOptionalDependencyAudit = async (path: string, merged: ScanResult): Promise<ScanResult> => {
+      try {
+            const auditResult = await runDependencyAudit(path);
+            return finalizeScanResult(
+                  {
+                        ...merged,
+                        findings: [...merged.findings, ...auditResult.findings],
+                        warnings: [...(merged.warnings ?? []), ...(auditResult.warnings ?? [])],
+                        engines: { ...merged.engines, osv: auditResult.engines?.osv },
+                        osvCheckedPackages: auditResult.osvCheckedPackages,
+                  },
+                  auditResult.engines?.dependencyAudit ?? false,
+            );
+      } catch (error) {
+            return finalizeScanResult({
+                  ...merged,
+                  warnings: [...(merged.warnings ?? []), `Auditoria de dependências falhou: ${errorMessage(error)}.`],
+            });
+      }
+};
+
+const runScanEngines = async (path: string, rules: Rule[], options: ScanOutputOptions): Promise<ScanResult> => {
+      try {
+            const merged = await runNativeAndSemgrep(path, rules, options);
+            return options.deps ? runOptionalDependencyAudit(path, merged) : finalizeScanResult(merged);
+      } catch (error) {
+            throw error;
       }
 };
 
