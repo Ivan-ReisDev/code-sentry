@@ -63,3 +63,48 @@ it('does not report for/while/switch statements', () => {
 
       expect(tooManyIfsRule.check('file.ts', content)).toHaveLength(0);
 });
+
+it('does not report a function with exactly 2 ternaries (at the limit)', () => {
+      const content = [
+            'const fn = (node) => {',
+            '  const a = node.type === "A" ? node.a : undefined;',
+            '  const b = node.type === "B" ? node.b : undefined;',
+            '  return a ?? b;',
+            '};',
+      ].join('\n');
+
+      expect(tooManyIfsRule.check('file.ts', content)).toHaveLength(0);
+});
+
+it('reports a function with 3 chained ternaries and no if statements', () => {
+      const content = [
+            'const isBodyParserWithoutLimit = (node) => {',
+            '  const callee = node.type === "CallExpression" ? node.callee : undefined;',
+            '  const object = callee?.type === "MemberExpression" ? callee.object : undefined;',
+            '  const property = callee?.type === "MemberExpression" ? callee.property : undefined;',
+            '  return object && property;',
+            '};',
+      ].join('\n');
+
+      const findings = tooManyIfsRule.check('file.ts', content);
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({ ruleId: 'too-many-ifs', severity: 'low' });
+      expect(findings[0].message).toContain('3');
+});
+
+it('sums if statements and ternaries toward the same total', () => {
+      const content = [
+            'function fn(node) {',
+            '  if (node.skip) { return undefined; }',
+            '  const a = node.type === "A" ? node.a : undefined;',
+            '  const b = node.type === "B" ? node.b : undefined;',
+            '  return a ?? b;',
+            '}',
+      ].join('\n');
+
+      const findings = tooManyIfsRule.check('file.ts', content);
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0].message).toContain('3');
+});
