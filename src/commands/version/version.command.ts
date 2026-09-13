@@ -37,6 +37,12 @@ export const formatEngineVersions = (report: VersionReport): string => {
       ].join('\n');
 };
 
+const errorReason = (error: unknown): string =>
+      error instanceof Error ? error.message : 'erro desconhecido';
+
+const formatVersionOutput = (options: VersionCommandOptions, report: VersionReport): string =>
+      options.json ? JSON.stringify(report, null, 2) : formatEngineVersions(report);
+
 export const registerVersionCommand = (
       program: Command,
       readPackageVersion: () => string,
@@ -56,11 +62,10 @@ export const registerVersionCommand = (
 
                   try {
                         const report = buildVersionReport(codesentryVersion, readEngineMetadata());
-                        console.log(options.json ? JSON.stringify(report, null, 2) : formatEngineVersions(report));
+                        console.log(formatVersionOutput(options, report));
                   } catch (error) {
-                        const reason = error instanceof Error ? error.message : 'erro desconhecido';
                         process.exitCode = 1;
-                        console.error(`Não foi possível auditar as versões dos motores: ${reason}`);
+                        console.error(`Não foi possível auditar as versões dos motores: ${errorReason(error)}`);
                   }
             });
 };
