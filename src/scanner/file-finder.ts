@@ -7,6 +7,20 @@ const SCANNABLE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx'];
 
 const isScannable = (fileName: string): boolean => SCANNABLE_EXTENSIONS.some((ext) => fileName.endsWith(ext));
 
+const filesFromDirectory = async (
+      currentDir: string,
+      entry: Dirent<string>,
+      includeTests: boolean,
+): Promise<string[]> => {
+      return isIgnoredDirName(entry.name, includeTests) ? [] : walk(join(currentDir, entry.name), includeTests);
+};
+
+const filesFromFile = (currentDir: string, entry: Dirent<string>, includeTests: boolean): string[] => {
+      return entry.isFile() && isScannable(entry.name) && (includeTests || !isTestFileName(entry.name))
+            ? [join(currentDir, entry.name)]
+            : [];
+};
+
 // Percorre diretório por diretório, em vez de listar tudo de uma vez com
 // { recursive: true }, para nunca entrar em pastas ignoradas — um caminho
 // muito longo ou um link quebrado dentro de node_modules/.git não deve
@@ -14,11 +28,9 @@ const isScannable = (fileName: string): boolean => SCANNABLE_EXTENSIONS.some((ex
 // qualquer forma.
 const filesFromEntry = async (currentDir: string, entry: Dirent<string>, includeTests: boolean): Promise<string[]> => {
       if (entry.isDirectory()) {
-            return isIgnoredDirName(entry.name, includeTests) ? [] : walk(join(currentDir, entry.name), includeTests);
+            return filesFromDirectory(currentDir, entry, includeTests);
       }
-      return entry.isFile() && isScannable(entry.name) && (includeTests || !isTestFileName(entry.name))
-            ? [join(currentDir, entry.name)]
-            : [];
+      return filesFromFile(currentDir, entry, includeTests);
 };
 
 const walk = async (currentDir: string, includeTests: boolean): Promise<string[]> => {
