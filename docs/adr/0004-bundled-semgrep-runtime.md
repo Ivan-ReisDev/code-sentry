@@ -15,8 +15,9 @@ instalações comuns e não garantiria versões reproduzíveis das regras.
 Publicar, para cada release, os pacotes opcionais
 `codesentry-semgrep-linux-x64` e `codesentry-semgrep-win32-x64`. Cada um
 contém CPython portátil, Semgrep CE e suas dependências. O pacote principal
-resolve exclusivamente o pacote da plataforma atual e executa
-`python -m semgrep`; ele nunca procura binários no `PATH`.
+resolve exclusivamente o pacote da plataforma atual e executa o binário
+Semgrep vendorizado; ele nunca procura binários instalados externamente no
+`PATH`.
 
 O pacote `codesentry-semgrep-rules` contém um snapshot do ruleset
 `p/owasp-top-ten` em YAML. A preparação de release baixa o ruleset uma única
@@ -40,5 +41,7 @@ separadamente.
   sempre com versões e checksums registrados no artefato. A revisão de
   licenças e a inclusão dos avisos são obrigatórias antes da primeira
   publicação.
+- `codesentry version --engines` expõe as versões e a proveniência efetiva
+  dos artefatos instalados, sem executar o motor nem usar a rede.
 - A rede continua podendo ser usada por comandos independentes como `npm
 audit`; ela não é requisito do `codesentry scan`.

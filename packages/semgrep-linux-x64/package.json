@@ -18,6 +18,7 @@
             "LICENSE"
       ],
       "exports": {
-            "./runtime.json": "./runtime.json"
+            "./runtime.json": "./runtime.json",
+            "./runtime.lock.json": "./runtime.lock.json"
       }
 }

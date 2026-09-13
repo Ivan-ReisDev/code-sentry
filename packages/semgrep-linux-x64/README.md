@@ -27,6 +27,10 @@ por parte de quem instala. O racional completo está no
 o instala em máquinas Linux x64 (`os`/`cpu` no `package.json` filtram isso
 automaticamente) — em outras plataformas ele nunca é baixado.
 
+O manifesto `runtime.lock.json` registra versões do Semgrep CE e Python e o
+SHA-256 do runtime publicado. Ele é consumido localmente por
+`codesentry version --engines`.
+
 ## Não é para instalação direta
 
 Se você quer usar o CodeSentry, instale o pacote principal — o npm resolve

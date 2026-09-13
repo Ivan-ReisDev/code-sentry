@@ -10,6 +10,7 @@
             "LICENSE"
       ],
       "exports": {
-            "./rules/owasp.yml": "./rules/owasp.yml"
+            "./rules/owasp.yml": "./rules/owasp.yml",
+            "./rules/ruleset.lock.json": "./rules/ruleset.lock.json"
       }
 }

@@ -12,7 +12,7 @@ it('reports the actual package.json version instead of a hardcoded one', () => {
       expect(program.version()).toBe(version);
 });
 
-const COMMANDS_WITHOUT_TESTS_OPTION = new Set(['init', 'rules', 'help', 'dependency-audit']);
+const COMMANDS_WITHOUT_TESTS_OPTION = new Set(['init', 'rules', 'help', 'dependency-audit', 'version']);
 
 it('registers --tests on every scan/rule command, except commands that never read source files', () => {
       const program = createCli();
@@ -32,4 +32,5 @@ it('registers standalone commands for weak-cipher-mode and hardcoded-authorizati
 
       expect(commandNames).toContain('weak-cipher-mode');
       expect(commandNames).toContain('hardcoded-authorization-value');
+      expect(commandNames).toContain('version');
 });

@@ -148,6 +148,31 @@ usando um snapshot local do ruleset OWASP e `--metrics=off`. O comando não
 consulta a Semgrep Registry, não envia métricas e não requer internet após a
 instalação.
 
+### Versões e atualização dos motores
+
+Use `codesentry version --engines` para auditar exatamente os componentes
+embutidos na sua instalação. O comando não executa o Semgrep nem acessa a
+rede; ele mostra a versão do CodeSentry, a versão do Semgrep CE e Python do
+runtime da plataforma, e a proveniência do snapshot `p/owasp-top-ten`
+(origem, data de captura, revisão upstream quando disponível e SHA-256).
+
+```bash
+codesentry version --engines
+codesentry version --engines --json
+```
+
+O snapshot do ruleset é identificado pela versão do pacote publicada junto ao
+CodeSentry e pelo SHA-256 do seu conteúdo. A Semgrep Registry não fornece
+necessariamente um commit estável para um ruleset público; nesse caso, o hash
+é o identificador imutável que permite comparar o conteúdo auditado.
+
+**Política de atualização:** revisamos semanalmente novas versões do Semgrep
+e alterações no `p/owasp-top-ten`; atualizações regulares são publicadas em
+até 30 dias. Correções upstream classificadas como críticas ou que afetem a
+integridade da análise têm prioridade para uma release em até 48 horas. Toda
+release que atualizar um motor ou ruleset registra as versões e hashes nos
+artefatos publicados.
+
 `--concurrency <n>` limita o processamento paralelo do scanner nativo; use
 apenas inteiros positivos. Sem valor, o limite é ajustado para a máquina
 (`min(8, availableParallelism())`). Não há `--config` remoto: atualizações de
