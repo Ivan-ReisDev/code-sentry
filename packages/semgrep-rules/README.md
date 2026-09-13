@@ -28,6 +28,11 @@ para o racional completo.
 diferente dos runtimes por plataforma) — ele é sempre instalado junto,
 independente do sistema operacional.
 
+O manifesto `rules/ruleset.lock.json`, também exposto pelo pacote, registra a
+versão do pacote, origem, data de captura, SHA-256 e, quando disponível, a
+revisão upstream do snapshot. O comando `codesentry version --engines` lê
+esse manifesto localmente para permitir auditoria sem rede.
+
 ## Não é para instalação direta
 
 Se você quer usar o CodeSentry, instale o pacote principal:

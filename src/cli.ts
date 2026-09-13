@@ -33,6 +33,7 @@ import { registerTooManyTryCatchCommand } from './commands/too-many-try-catch/to
 import { registerTooManyWhileLoopsCommand } from './commands/too-many-while-loops/too-many-while-loops.command.js';
 import { registerUnhandledPromisesCommand } from './commands/unhandled-promises/unhandled-promises.command.js';
 import { registerUnsafeSqlCommand } from './commands/unsafe-sql/unsafe-sql.command.js';
+import { registerVersionCommand } from './commands/version/version.command.js';
 import { registerWeakCipherModeCommand } from './commands/weak-cipher-mode/weak-cipher-mode.command.js';
 import { registerWeakHashAlgorithmCommand } from './commands/weak-hash-algorithm/weak-hash-algorithm.command.js';
 import { registerWeakSecretFallbackCommand } from './commands/weak-secret-fallback/weak-secret-fallback.command.js';
@@ -110,6 +111,7 @@ export const createCli = (): Command => {
             .helpCommand(false);
 
       registerInitCommand(program);
+      registerVersionCommand(program, readPackageVersion);
       registerAnalysisCommands(program);
       registerQualityCommands(program);
       registerSecurityCommands(program);

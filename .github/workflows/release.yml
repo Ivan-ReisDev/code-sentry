@@ -39,6 +39,9 @@ jobs:
                   - run: npm install --ignore-scripts
                   # Rede só é usada na preparação da release; o arquivo publicado é local e fixado.
                   - run: npm run prepare:owasp-rules
+                  - name: Validate ruleset provenance manifest
+                    run: |
+                          node -e "const lock = require('./packages/semgrep-rules/rules/ruleset.lock.json'); if (lock.schemaVersion !== 1 || !lock.packageVersion || !lock.ruleset || !lock.source || !/^[a-f0-9]{64}$/i.test(lock.sha256) || Number.isNaN(Date.parse(lock.capturedAt))) process.exit(1)"
                   - name: Check if this version is already published
                     id: check
                     run: |
@@ -146,6 +149,11 @@ jobs:
                           node scripts/write-runtime-lock.mjs "${{ matrix.package }}"
                   - name: Prepare fixed offline OWASP snapshot
                     run: npm run prepare:owasp-rules
+                  - name: Validate engine provenance manifests
+                    shell: bash
+                    run: |
+                          node -e "const runtime = require('./${{ matrix.package }}/runtime.lock.json'); if (runtime.schemaVersion !== 1 || !runtime.semgrepVersion || !runtime.pythonVersion || !/^[a-f0-9]{64}$/i.test(runtime.runtimeSha256)) process.exit(1)"
+                          node -e "const rules = require('./packages/semgrep-rules/rules/ruleset.lock.json'); if (rules.schemaVersion !== 1 || !rules.packageVersion || !rules.ruleset || !rules.source || !/^[a-f0-9]{64}$/i.test(rules.sha256) || Number.isNaN(Date.parse(rules.capturedAt))) process.exit(1)"
                   - name: Smoke test bundled runtime against multi-language fixture
                     shell: bash
                     run: |

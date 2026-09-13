@@ -1,7 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { printConsoleReport } from '../../src/reporters/console.reporter.js';
-import { DEPENDENCY_AUDIT_NOTE, ZERO_SEMGREP_COVERAGE_WARNING } from '../../src/scanner/scan-result.js';
-import type { ScanResult } from '../../src/scanner/scan-result.js';
+import {
+      DEPENDENCY_AUDIT_NOTE,
+      ZERO_SEMGREP_COVERAGE_WARNING,
+      type ScanResult,
+} from '../../src/scanner/scan-result.js';
 
 afterEach(() => {
       vi.restoreAllMocks();
