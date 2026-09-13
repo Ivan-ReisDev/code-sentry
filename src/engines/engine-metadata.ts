@@ -62,6 +62,8 @@ const readJsonFile = <T>(path: string): T => {
 
 const nonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
+const errorReason = (error: unknown): string => (error instanceof Error ? error.message : 'erro desconhecido');
+
 const validRuntimeLock = (lock: RuntimeLock): boolean =>
       lock.schemaVersion === 1 &&
       nonEmptyString(lock.semgrepVersion) &&
@@ -101,8 +103,7 @@ export const loadBundledSemgrepRuntimeMetadata = (
                   runtimeSha256: lock.runtimeSha256,
             };
       } catch (error) {
-            const reason = error instanceof Error ? error.message : 'erro desconhecido';
-            throw new Error(`Não foi possível carregar os metadados do runtime Semgrep embutido: ${reason}`, {
+            throw new Error(`Não foi possível carregar os metadados do runtime Semgrep embutido: ${errorReason(error)}`, {
                   cause: error,
             });
       }
@@ -125,8 +126,7 @@ export const loadBundledOwaspRulesetMetadata = (
                   ...(lock.upstreamRevision ? { upstreamRevision: lock.upstreamRevision } : {}),
             };
       } catch (error) {
-            const reason = error instanceof Error ? error.message : 'erro desconhecido';
-            throw new Error(`Não foi possível carregar os metadados do ruleset OWASP embutido: ${reason}`, {
+            throw new Error(`Não foi possível carregar os metadados do ruleset OWASP embutido: ${errorReason(error)}`, {
                   cause: error,
             });
       }
