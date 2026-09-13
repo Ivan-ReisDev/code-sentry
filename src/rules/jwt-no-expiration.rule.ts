@@ -14,17 +14,42 @@ const objectHasProperty = (object: SourceNode | undefined, propertyName: string)
       );
 };
 
-const isJwtSignWithoutExpiration = (node: SourceNode): boolean => {
+interface JwtSignCallParts {
+      object: SourceNode | undefined;
+      property: SourceNode | undefined;
+      args: SourceNode[] | undefined;
+}
+
+const getCallExpressionParts = (
+      node: SourceNode,
+): { callee: SourceNode | undefined; args: SourceNode[] | undefined } => {
       const callee = node.type === 'CallExpression' ? (node.callee as SourceNode | undefined) : undefined;
+      const args = node.type === 'CallExpression' ? (node.arguments as SourceNode[] | undefined) : undefined;
+      return { callee, args };
+};
+
+const getMemberExpressionParts = (
+      callee: SourceNode | undefined,
+): { object: SourceNode | undefined; property: SourceNode | undefined } => {
       const object = callee?.type === 'MemberExpression' ? (callee.object as SourceNode | undefined) : undefined;
       const property = callee?.type === 'MemberExpression' ? (callee.property as SourceNode | undefined) : undefined;
+      return { object, property };
+};
+
+const getJwtSignCallParts = (node: SourceNode): JwtSignCallParts => {
+      const { callee, args } = getCallExpressionParts(node);
+      const { object, property } = getMemberExpressionParts(callee);
+      return { object, property, args };
+};
+
+const isJwtSignWithoutExpiration = (node: SourceNode): boolean => {
+      const { object, property, args } = getJwtSignCallParts(node);
       const isJwtSignCall =
             object?.type === 'Identifier' &&
             object.name === 'jwt' &&
             property?.type === 'Identifier' &&
             property.name === 'sign';
 
-      const args = node.type === 'CallExpression' ? (node.arguments as SourceNode[] | undefined) : undefined;
       const payload = args?.[0];
       const options = args?.[2];
       const hasExpInPayload = objectHasProperty(payload, 'exp');
