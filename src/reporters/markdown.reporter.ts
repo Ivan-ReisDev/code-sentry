@@ -84,6 +84,21 @@ const severitySections = (bySeverity: Map<string, RuleFinding[]>): string[] => {
       return lines;
 };
 
+const osvCheckedSection = (result: ScanResult): string[] => {
+      const { osvCheckedPackages } = result;
+      if (!osvCheckedPackages || osvCheckedPackages.length === 0) {
+            return [];
+      }
+      const checked = result.engines?.osv?.checked ?? osvCheckedPackages.length;
+      const total = result.engines?.osv?.total ?? osvCheckedPackages.length;
+      return [
+            `## Dependências verificadas no OSV.dev (${checked}/${total})`,
+            '',
+            ...osvCheckedPackages.map((pkg) => `- ${pkg}`),
+            '',
+      ];
+};
+
 export const toMarkdownReport = (result: ScanResult, generatedAt: Date = new Date()): string => {
       const bySeverity = groupBy(result.findings, (f) => f.severity);
       return [
@@ -91,5 +106,6 @@ export const toMarkdownReport = (result: ScanResult, generatedAt: Date = new Dat
             ...warningsSection(result),
             ...summaryTable(bySeverity),
             ...severitySections(bySeverity),
+            ...osvCheckedSection(result),
       ].join('\n');
 };

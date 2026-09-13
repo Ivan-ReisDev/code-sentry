@@ -123,6 +123,29 @@ it('includes the dependency-audit note in the header when dependencyAudit is fal
       expect(md).toContain(DEPENDENCY_AUDIT_NOTE);
 });
 
+it('lists the dependencies checked against OSV.dev, with how many of how many', () => {
+      const md = toMarkdownReport(
+            {
+                  scannedFiles: 1,
+                  durationMs: 1,
+                  findings: [],
+                  engines: { dependencyAudit: 3, osv: { checked: 2, total: 3 } },
+                  osvCheckedPackages: ['chalk@6.0.0', 'lodash@4.17.15'],
+            },
+            fixedDate,
+      );
+
+      expect(md).toContain('## Dependências verificadas no OSV.dev (2/3)');
+      expect(md).toContain('- chalk@6.0.0');
+      expect(md).toContain('- lodash@4.17.15');
+});
+
+it('omits the OSV.dev checked-dependencies section when there is nothing to list', () => {
+      const md = toMarkdownReport({ scannedFiles: 1, durationMs: 1, findings: [] }, fixedDate);
+
+      expect(md).not.toContain('Dependências verificadas no OSV.dev');
+});
+
 it('includes a warnings section when the result carries warnings', () => {
       const md = toMarkdownReport(
             {

@@ -10,10 +10,30 @@ const SEVERITY_COLOR: Record<Severity, (text: string) => string> = {
       critical: (text) => chalk.bgRed.white(text),
 };
 
-const coverageText = (result: ScanResult): string =>
+const semgrepCoverage = (result: ScanResult): string | undefined =>
       result.engines?.semgrep === undefined
-            ? ''
-            : ` CodeSentry: ${result.engines.codesentry ?? result.scannedFiles} JS/TS; Semgrep: ${result.engines.semgrep} arquivo(s).`;
+            ? undefined
+            : `CodeSentry: ${result.engines.codesentry ?? result.scannedFiles} JS/TS; Semgrep: ${result.engines.semgrep} arquivo(s)`;
+
+const dependencyAuditCoverage = (result: ScanResult): string | undefined =>
+      typeof result.engines?.dependencyAudit === 'number'
+            ? `Dependency audit: ${result.engines.dependencyAudit} pacote(s) via npm audit`
+            : undefined;
+
+const osvCoverage = (result: ScanResult): string | undefined =>
+      result.engines?.osv
+            ? `OSV.dev: ${result.engines.osv.checked}/${result.engines.osv.total} verificados`
+            : undefined;
+
+const coverageParts = (result: ScanResult): string[] =>
+      [semgrepCoverage(result), dependencyAuditCoverage(result), osvCoverage(result)].filter(
+            (part): part is string => part !== undefined,
+      );
+
+const coverageText = (result: ScanResult): string => {
+      const parts = coverageParts(result);
+      return parts.length ? ` ${parts.join('; ')}.` : '';
+};
 
 const printNotes = (result: ScanResult): void => {
       if (result.engines?.dependencyAudit === false) {
