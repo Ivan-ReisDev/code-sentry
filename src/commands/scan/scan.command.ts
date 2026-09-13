@@ -29,9 +29,11 @@ export const registerScanCommand = (program: Command): void => {
                   .option('--config <file>', 'usa um ruleset Semgrep YAML local', parseLocalSemgrepConfig)
                   .option(
                         '--no-deps',
-                        'não inclui a auditoria de dependências (npm audit + OSV.dev) neste scan — permite rodar offline',
+                        'não inclui a auditoria de dependências (npm audit + OSV.dev + NVD) neste scan — permite rodar offline',
                   ),
-      ).action((path: string, options: ScanOutputOptions) =>
-            scanAndReport(path, allRules, 'Scanning files...', { ...options, semgrep: true }),
-      );
+      )
+            .option('--no-nvd', 'não enriquece os resultados OSV com dados do NVD')
+            .action((path: string, options: ScanOutputOptions) =>
+                  scanAndReport(path, allRules, 'Scanning files...', { ...options, semgrep: true }),
+            );
 };

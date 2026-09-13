@@ -1,4 +1,5 @@
 import type { RuleFinding } from '../rules/rule.interface.js';
+import type { NvdCoverage } from './nvd-enrichment.js';
 
 export interface ScanResult {
       scannedFiles: number;
@@ -15,6 +16,7 @@ export interface ScanEngines {
       semgrep?: number;
       dependencyAudit?: number | false;
       osv?: { checked: number; total: number };
+      nvd?: false | NvdCoverage;
 }
 
 export const DEPENDENCY_AUDIT_NOTE =
@@ -28,9 +30,12 @@ export const mergeScanResults = (nativeResult: ScanResult, semgrepResult: ScanRe
       findings: [...nativeResult.findings, ...semgrepResult.findings],
       durationMs: nativeResult.durationMs + semgrepResult.durationMs,
       engines: {
+            ...nativeResult.engines,
+            ...semgrepResult.engines,
             codesentry: nativeResult.engines?.codesentry ?? nativeResult.scannedFiles,
             semgrep: semgrepResult.engines?.semgrep ?? semgrepResult.scannedFiles,
       },
+      warnings: [...(nativeResult.warnings ?? []), ...(semgrepResult.warnings ?? [])],
 });
 
 export const finalizeScanResult = (

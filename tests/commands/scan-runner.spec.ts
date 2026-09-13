@@ -119,10 +119,24 @@ it('runs the dependency audit and merges its findings when deps is requested', a
 
       await scanAndReport(dir, [], 'test', { json: true, deps: true });
 
-      expect(runDependencyAudit).toHaveBeenCalledWith(dir);
+      expect(runDependencyAudit).toHaveBeenCalledWith(dir, { nvdEnabled: true });
       const output = logSpy.mock.calls.flat().join('\n');
       expect(output).toContain('vulnerável');
       expect(output).toContain('"dependencyAudit": 3');
+});
+
+it('passes the disabled NVD option to the dependency audit', async () => {
+      vi.mocked(runDependencyAudit).mockResolvedValue({
+            scannedFiles: 1,
+            findings: [],
+            durationMs: 5,
+            engines: { dependencyAudit: 3, nvd: false },
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await scanAndReport(dir, [], 'test', { json: true, deps: true, nvd: false });
+
+      expect(runDependencyAudit).toHaveBeenCalledWith(dir, { nvdEnabled: false });
 });
 
 it('turns a dependency audit failure into a warning instead of failing the whole scan', async () => {

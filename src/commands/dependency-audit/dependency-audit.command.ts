@@ -14,7 +14,10 @@ const printAuditResult = (result: Awaited<ReturnType<typeof runDependencyAudit>>
 
 const auditAndReport = async (path: string, options: ScanOutputOptions): Promise<void> => {
       try {
-            printAuditResult(await runDependencyAudit(path), options.json ?? false);
+            printAuditResult(
+                  await runDependencyAudit(path, { nvdEnabled: options.nvd ?? true }),
+                  options.json ?? false,
+            );
       } catch (error) {
             const message = error instanceof Error ? error.message : 'erro desconhecido';
             process.exitCode = 1;
@@ -25,10 +28,9 @@ const auditAndReport = async (path: string, options: ScanOutputOptions): Promise
 export const registerDependencyAuditCommand = (program: Command): void => {
       program
             .command('dependency-audit')
-            .description(
-                  'Audita as dependências do projeto contra vulnerabilidades conhecidas (via "npm audit" e OSV.dev; requer npm no PATH e acesso à rede)',
-            )
+            .description('Audita dependências via npm audit e OSV.dev, com enriquecimento opcional do NVD')
             .argument('[path]', 'diretório do projeto a ser auditado', '.')
             .option('--json', 'exibe o resultado em JSON')
+            .option('--no-nvd', 'não enriquece os resultados OSV com dados do NVD')
             .action((path: string, options: ScanOutputOptions) => auditAndReport(path, options));
 };

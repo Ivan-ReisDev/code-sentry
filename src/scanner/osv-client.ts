@@ -19,6 +19,7 @@ export interface OsvAffected {
 
 export interface OsvVulnerability {
       id: string;
+      aliases?: string[];
       summary?: string;
       database_specific?: { severity?: string };
       affected?: OsvAffected[];
@@ -44,7 +45,12 @@ export interface OsvDetailsResult {
 export type FetchLike = (
       url: string,
       init?: RequestInit,
-) => Promise<{ ok: boolean; status?: number; json: () => Promise<unknown> }>;
+) => Promise<{
+      ok: boolean;
+      status?: number;
+      headers?: { get: (name: string) => string | null };
+      json: () => Promise<unknown>;
+}>;
 
 const OSV_BATCH_CHUNK_SIZE = 100;
 const OSV_DETAIL_CONCURRENCY = 10;

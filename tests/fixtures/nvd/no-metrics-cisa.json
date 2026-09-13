@@ -1,0 +1,33 @@
+{
+      "totalResults": 1,
+      "vulnerabilities": [
+            {
+                  "cve": {
+                        "id": "CVE-2026-10999",
+                        "vulnStatus": "Awaiting Analysis",
+                        "descriptions": [{ "lang": "en", "value": "Record without CVSS" }],
+                        "references": [],
+                        "cisaExploitAdd": "2026-01-10",
+                        "cisaActionDue": "2026-01-31",
+                        "cisaRequiredAction": "Apply the vendor update.",
+                        "cisaVulnerabilityName": "Fixture vulnerability",
+                        "metrics": {
+                              "ssvcV203": [
+                                    {
+                                          "ssvcData": {
+                                                "role": "CISA Coordinator",
+                                                "version": "2.0.3",
+                                                "timestamp": "2026-01-10T12:00:00Z",
+                                                "options": [
+                                                      { "exploitation": "active" },
+                                                      { "automatable": "yes" },
+                                                      { "technicalImpact": "total" }
+                                                ]
+                                          }
+                                    }
+                              ]
+                        }
+                  }
+            }
+      ]
+}

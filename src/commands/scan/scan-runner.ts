@@ -29,6 +29,8 @@ export interface ScanOutputOptions {
        * `true` there, `false` when `--no-deps` is passed).
        */
       deps?: boolean;
+      /** Internal: enabled by the scan/dependency-audit commands unless --no-nvd is passed. */
+      nvd?: boolean;
 }
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'erro desconhecido');
@@ -76,15 +78,24 @@ const runNativeAndSemgrep = async (path: string, rules: Rule[], options: ScanOut
       }
 };
 
-const runOptionalDependencyAudit = async (path: string, merged: ScanResult): Promise<ScanResult> => {
+const runOptionalDependencyAudit = async (
+      path: string,
+      merged: ScanResult,
+      options: ScanOutputOptions,
+): Promise<ScanResult> => {
       try {
-            const auditResult = await runDependencyAudit(path);
+            const auditResult = await runDependencyAudit(path, { nvdEnabled: options.nvd ?? true });
             return finalizeScanResult(
                   {
                         ...merged,
                         findings: [...merged.findings, ...auditResult.findings],
+                        durationMs: merged.durationMs + auditResult.durationMs,
                         warnings: [...(merged.warnings ?? []), ...(auditResult.warnings ?? [])],
-                        engines: { ...merged.engines, osv: auditResult.engines?.osv },
+                        engines: {
+                              ...merged.engines,
+                              osv: auditResult.engines?.osv,
+                              nvd: auditResult.engines?.nvd,
+                        },
                         osvCheckedPackages: auditResult.osvCheckedPackages,
                   },
                   auditResult.engines?.dependencyAudit ?? false,
@@ -93,6 +104,7 @@ const runOptionalDependencyAudit = async (path: string, merged: ScanResult): Pro
             return finalizeScanResult({
                   ...merged,
                   warnings: [...(merged.warnings ?? []), `Auditoria de dependências falhou: ${errorMessage(error)}.`],
+                  engines: { ...merged.engines, nvd: false },
             });
       }
 };
@@ -100,7 +112,7 @@ const runOptionalDependencyAudit = async (path: string, merged: ScanResult): Pro
 const runScanEngines = async (path: string, rules: Rule[], options: ScanOutputOptions): Promise<ScanResult> => {
       try {
             const merged = await runNativeAndSemgrep(path, rules, options);
-            return options.deps ? runOptionalDependencyAudit(path, merged) : finalizeScanResult(merged);
+            return options.deps ? runOptionalDependencyAudit(path, merged, options) : finalizeScanResult(merged);
       } catch (error) {
             throw error;
       }

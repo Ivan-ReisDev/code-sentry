@@ -1,0 +1,33 @@
+{
+      "totalResults": 1,
+      "vulnerabilities": [
+            {
+                  "cve": {
+                        "id": "CVE-2026-10004",
+                        "descriptions": [{ "lang": "en", "value": "CVSS v4 fixture" }],
+                        "references": [],
+                        "metrics": {
+                              "cvssMetricV40": [
+                                    {
+                                          "source": "nvd@nist.gov",
+                                          "type": "Primary",
+                                          "cvssData": {
+                                                "version": "4.0",
+                                                "vectorString": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                                                "baseScore": 9.3,
+                                                "baseSeverity": "CRITICAL",
+                                                "attackVector": "NETWORK",
+                                                "attackComplexity": "LOW",
+                                                "privilegesRequired": "NONE",
+                                                "userInteraction": "NONE",
+                                                "vulnConfidentialityImpact": "HIGH",
+                                                "vulnIntegrityImpact": "HIGH",
+                                                "vulnAvailabilityImpact": "HIGH"
+                                          }
+                                    }
+                              ]
+                        }
+                  }
+            }
+      ]
+}

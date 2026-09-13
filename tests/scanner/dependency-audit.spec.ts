@@ -148,7 +148,7 @@ const lodashRedosVuln: OsvVulnerability = {
       ],
 };
 
-it('excludes OSV findings for packages npm audit already flagged', () => {
+it('keeps OSV findings even when npm audit also flagged the package, because OSV is primary', () => {
       const findings = mapOsvFindingsToRuleFindings(
             [{ name: 'lodash', version: '4.17.15' }],
             new Map([['lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
@@ -156,7 +156,55 @@ it('excludes OSV findings for packages npm audit already flagged', () => {
             new Set(['lodash']),
       );
 
-      expect(findings).toHaveLength(0);
+      expect(findings).toHaveLength(1);
+});
+
+it('deduplicates a npm advisory only when its canonical id matches OSV for the same package', () => {
+      const report: NpmAuditReport = {
+            vulnerabilities: {
+                  lodash: {
+                        name: 'lodash',
+                        severity: 'high',
+                        range: '<4.17.21',
+                        fixAvailable: true,
+                        via: [
+                              {
+                                    title: 'Prototype Pollution GHSA-aaaa-bbbb-cccc',
+                                    url: 'https://github.com/advisories/GHSA-aaaa-bbbb-cccc',
+                              },
+                              { title: 'A distinct npm advisory without a canonical id' },
+                        ],
+                  },
+            },
+      };
+
+      const findings = mapAuditReportToFindings(report, new Map([['lodash', new Set(['GHSA-AAAA-BBBB-CCCC'])]]));
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0].message).toContain('distinct npm advisory');
+});
+
+it('does not duplicate equivalent npm advisory entries or render transitive via strings beside structured advisories', () => {
+      const advisory = {
+            title: 'Prototype Pollution CVE-2026-12345',
+            url: 'https://example.com/CVE-2026-12345',
+      };
+      const report: NpmAuditReport = {
+            vulnerabilities: {
+                  lodash: {
+                        name: 'lodash',
+                        severity: 'high',
+                        range: '*',
+                        fixAvailable: false,
+                        via: [advisory, { ...advisory }, 'transitive-package'],
+                  },
+            },
+      };
+
+      const findings = mapAuditReportToFindings(report);
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0].dependency?.advisory.id).toBe('CVE-2026-12345');
 });
 
 it('keeps OSV findings for packages npm audit did not flag, with the fix version from OSV itself', () => {
@@ -177,6 +225,20 @@ it('keeps OSV findings for packages npm audit did not flag, with the fix version
       expect(findings[0].message).toContain('GHSA-29mw-wpgm-hmr9');
       expect(findings[0].message).toContain('lodash@4.17.15');
       expect(findings[0].message).toContain('atualize para 4.17.21');
+});
+
+it('normalizes and deduplicates CVE aliases while preserving non-CVE aliases', () => {
+      const vulnerability: OsvVulnerability = {
+            ...lodashRedosVuln,
+            aliases: [' cve-2026-12345 ', 'CVE-2026-12345', 'GHSA-29mw-wpgm-hmr9'],
+      };
+      const findings = mapOsvFindingsToRuleFindings(
+            [{ name: 'lodash', version: '4.17.15' }],
+            new Map([['lodash@4.17.15', [vulnerability.id]]]),
+            new Map([[vulnerability.id, vulnerability]]),
+      );
+
+      expect(findings[0].dependency?.advisory.aliases).toEqual(['CVE-2026-12345', 'GHSA-29mw-wpgm-hmr9']);
 });
 
 it('falls back to an honest "no fix published" message when OSV has no fixed event for that package', () => {
@@ -228,7 +290,10 @@ it('auditPackagesWithOsv reports every successfully queried package as checked',
       ];
       const fetchImpl = async (url: string) => {
             if (url.includes('querybatch')) {
-                  return { ok: true, json: async () => ({ results: [{ vulns: [{ id: 'GHSA-29mw-wpgm-hmr9' }] }, {}] }) };
+                  return {
+                        ok: true,
+                        json: async () => ({ results: [{ vulns: [{ id: 'GHSA-29mw-wpgm-hmr9' }] }, {}] }),
+                  };
             }
             return { ok: true, json: async () => lodashRedosVuln };
       };

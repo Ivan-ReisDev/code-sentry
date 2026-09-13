@@ -35,6 +35,15 @@ it('registers --no-deps on scan only, since it is the only command that should r
       expect(commandsWithDepsOption).toEqual(['scan']);
 });
 
+it('registers --no-nvd on scan and dependency-audit only', () => {
+      const program = createCli();
+      const commandsWithNvdOption = program.commands
+            .filter((command) => command.options.some((option) => option.flags.includes('--no-nvd')))
+            .map((command) => command.name());
+
+      expect(commandsWithNvdOption).toEqual(['scan', 'dependency-audit']);
+});
+
 it('registers standalone commands for weak-cipher-mode and hardcoded-authorization-value', () => {
       const program = createCli();
 

@@ -24,9 +24,13 @@ dados `command → scanner → rules → reporter`.
 │   │   ├── ignore-patterns.ts        # fonte única das exclusões, usada pelos dois motores
 │   │   ├── run-with-concurrency-limit.ts
 │   │   ├── scan-result.ts            # ScanResult, ScanEngines, mergeScanResults
-│   │   ├── dependency-audit.ts       # combina `npm audit --json` com OSV.dev
+│   │   ├── dependency-audit.ts       # combina npm audit, OSV.dev e enriquecimento NVD
 │   │   ├── package-lock-parser.ts    # enumera dependências reais via package-lock.json
 │   │   ├── osv-client.ts             # cliente HTTP do OSV.dev (querybatch + detalhe por id)
+│   │   ├── nvd-client.ts             # HTTP, pacing, timeout, retry e circuit breaker do NVD
+│   │   ├── nvd-normalizer.ts         # normaliza o schema variável da NVD API 2.0
+│   │   ├── nvd-cache.ts              # cache persistente por CVE, versionado e com TTL
+│   │   ├── nvd-enrichment.ts         # correlaciona aliases OSV com resultados NVD
 │   │   ├── semgrep.ts                # executa o Semgrep embutido e mapeia o JSON
 │   │   ├── semgrep-runtime.ts        # resolve o runtime (python/semgrep) da plataforma
 │   │   └── semgrep-rules.ts          # resolve o ruleset OWASP embutido
@@ -82,7 +86,7 @@ dados `command → scanner → rules → reporter`.
 | Pasta       | Responsabilidade                                                                                                                                                                                     |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `commands`  | Recebe e trata os comandos da CLI. Cada comando mora no seu próprio subdiretório (`<nome>/<nome>.command.ts`); a maioria das regras também tem um comando standalone que roda só ela.                |
-| `scanner`   | Descobre arquivos, aplica as `rules/` sobre cada um (motor nativo), roda o Semgrep embutido e a auditoria de dependências (`npm audit` + OSV.dev), e une os resultados em um `ScanResult`.           |
+| `scanner`   | Descobre arquivos, aplica as `rules/` sobre cada um (motor nativo), roda o Semgrep embutido e a auditoria de dependências (`npm audit` + OSV.dev + NVD), e une os resultados em um `ScanResult`.     |
 | `parser`    | Parsing de código-fonte (`@babel/parser`) e travessia de AST compartilhados por várias regras — não depende de `tsconfig`/config do projeto analisado.                                               |
 | `rules`     | As regras de análise nativas. Cada uma implementa `rule.interface.ts`; `lib/` guarda helpers reutilizados entre elas (travessia com ancestrais, contagem de statements, execução de plugins ESLint). |
 | `reporters` | Exibe ou exporta os resultados (console, JSON, Markdown) — cada um só recebe um `ScanResult` pronto.                                                                                                 |
@@ -101,7 +105,9 @@ dados `command → scanner → rules → reporter`.
       - **Semgrep embutido** (`scanner/semgrep.ts`): roda o ruleset `p/owasp-top-ten` (resolvido por `semgrep-rules.ts`) usando o runtime da plataforma atual (resolvido por `semgrep-runtime.ts`), e mapeia o JSON de saída para o mesmo formato de finding.
       - **Arquivos de teste** (`scanner/ignore-patterns.ts`): por padrão, nenhum dos dois motores acima analisa diretórios chamados `tests`/`test`/`__tests__` nem arquivos com sufixo `.spec.*`/`.test.*`, em qualquer profundidade — essa é a única fonte de verdade consultada tanto por `file-finder.ts` quanto pela lista de `--exclude` passada ao Semgrep. A flag `--tests` (presente em `scan` e em todo comando individual por regra) desliga essa exclusão.
       - `scan-result.ts#mergeScanResults` une motor nativo e Semgrep em um único `ScanResult`, com a cobertura de cada motor em `engines`.
-      - **Auditoria de dependências** (`scanner/dependency-audit.ts`): por padrão, `scan` também roda `npm audit` + OSV.dev (ver [ADR 0005](adr/0005-osv-dependency-database.md)) e funde os achados no mesmo `ScanResult` — exige rede. A flag `--no-deps` pula essa etapa para um scan 100% offline; os ~30 comandos individuais por regra (`weak-hash-algorithm`, `jwt-no-expiration`, etc.) nunca rodam essa auditoria.
+      - **Auditoria de dependências** (`scanner/dependency-audit.ts`): por padrão, `scan` roda `npm audit` e consulta o OSV.dev para os pacotes do `package-lock.json`. Matches OSV são enriquecidos pelo NVD somente quando possuem alias CVE. O enriquecedor deduplica CVEs globalmente e anexa resultados `found`, `not-found` ou `error` ao finding estruturado; falhas NVD não interrompem o scan. `--no-nvd` desativa apenas esse enriquecimento e `--no-deps` pula toda a etapa para um scan 100% offline. Ver [ADR 0005](adr/0005-osv-dependency-database.md) e [ADR 0006](adr/0006-nvd-enrichment.md).
+      - **Modelo de dependência** (`rules/rule.interface.ts`): os cinco campos históricos de `RuleFinding` permanecem obrigatórios. Findings de dependência acrescentam `dependency`, com pacote, advisory, aliases e resultados NVD normalizados. Reporters não fazem parsing da string `message`.
+      - **Cobertura NVD** (`scanner/scan-result.ts`): `engines.nvd` registra total de CVEs distintos, enriquecidos, sem resultado, falhas e cache hits; `false` significa que a integração foi desativada.
 4. O resultado é passado para um `reporter` (`console.reporter.ts`, `json.reporter.ts` ou, quando há mais de 20 problemas, também `markdown.reporter.ts`), que exibe ou exporta o relatório final.
 5. Falhas em qualquer etapa sobem como `Error` encadeados (`cause`); `errors.ts#formatErrorChain` percorre essa cadeia inteira ao reportar o erro final na CLI, em vez de mostrar só a mensagem do wrapper mais externo.
 
@@ -110,6 +116,7 @@ dados `command → scanner → rules → reporter`.
 - Cada regra em `rules/` implementa `rule.interface.ts`, o que permite adicionar novas regras sem alterar o `scanner`. Toda nova regra precisa ser registrada em `rules/index.ts` (`allRules`) para rodar como parte de `codesentry scan` — uma regra só com arquivo e teste, mas sem entrada em `allRules`, não é executada no scan real.
 - Regras que precisam de AST usam `parser/source-file.ts` (via `@babel/parser`, tolerante a erros de sintaxe) em vez de depender de `typescript`/config do projeto analisado — ver [ADR 0002](adr/0002-security-tooling.md) para o porquê dessa escolha de parser. Regras que reaproveitam cobertura já madura de plugins ESLint (`eslint-plugin-security`, `eslint-plugin-no-unsanitized`) passam por `rules/lib/eslint-linter.ts`, que roda um `Linter` do ESLint em memória, sem exigir `eslintrc`/config do projeto alvo.
 - Cada reporter é independente do `scanner` — ele só recebe um `ScanResult` já pronto e decide como exibi-lo.
+- O OSV é a fonte principal para identidade da vulnerabilidade e versões afetadas/corrigidas. O NVD é um adaptador de enriquecimento desacoplado; a correlação npm/OSV só remove um advisory npm quando há um identificador CVE/GHSA comum comprovável no mesmo pacote.
 - O `scanner` processa os arquivos com concorrência limitada (via `run-with-concurrency-limit.ts`, usando `p-limit`) para evitar picos de memória em projetos muito grandes — ver [ADR 0003](adr/0003-concurrency-limit.md).
 - Quando o resultado tem mais de 20 problemas, `scan-runner.ts` gera automaticamente um relatório em Markdown (`markdown.reporter.ts`) na raiz do diretório analisado, além da saída no console/JSON.
 - O Semgrep embutido roda offline, sem depender de Python/Docker instalados pelo usuário — o racional completo (runtime portátil por plataforma, ruleset fixado por versão, sem consultar a Semgrep Registry) está no [ADR 0004](adr/0004-bundled-semgrep-runtime.md).

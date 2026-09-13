@@ -1,0 +1,32 @@
+{
+      "totalResults": 1,
+      "vulnerabilities": [
+            {
+                  "cve": {
+                        "id": "CVE-2026-10020",
+                        "descriptions": [{ "lang": "en", "value": "CVSS v2 fixture" }],
+                        "references": [],
+                        "metrics": {
+                              "cvssMetricV2": [
+                                    {
+                                          "source": "nvd@nist.gov",
+                                          "type": "Primary",
+                                          "baseSeverity": "HIGH",
+                                          "userInteractionRequired": true,
+                                          "cvssData": {
+                                                "version": "2.0",
+                                                "vectorString": "AV:N/AC:M/Au:N/C:C/I:P/A:N",
+                                                "baseScore": 7.5,
+                                                "accessVector": "NETWORK",
+                                                "accessComplexity": "MEDIUM",
+                                                "confidentialityImpact": "COMPLETE",
+                                                "integrityImpact": "PARTIAL",
+                                                "availabilityImpact": "NONE"
+                                          }
+                                    }
+                              ]
+                        }
+                  }
+            }
+      ]
+}

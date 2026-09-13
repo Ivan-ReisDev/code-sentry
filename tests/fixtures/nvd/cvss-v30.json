@@ -1,0 +1,26 @@
+{
+      "totalResults": 1,
+      "vulnerabilities": [
+            {
+                  "cve": {
+                        "id": "CVE-2026-10030",
+                        "descriptions": [{ "lang": "en", "value": "CVSS v3.0 fixture" }],
+                        "references": [],
+                        "metrics": {
+                              "cvssMetricV30": [
+                                    {
+                                          "source": "vendor",
+                                          "type": "Primary",
+                                          "cvssData": {
+                                                "version": "3.0",
+                                                "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                                                "baseScore": 8.8,
+                                                "baseSeverity": "HIGH"
+                                          }
+                                    }
+                              ]
+                        }
+                  }
+            }
+      ]
+}

@@ -10,7 +10,7 @@ Semgrep CE para as linguagens suportadas por ele.
 
 - 🔎 **Dois motores num só comando** — regras próprias em TS/JS + Semgrep CE (OWASP Top 10) para dezenas de outras linguagens.
 - 📦 **Uma instalação, zero fricção** — `npm install -g codesentry` e pronto: sem Python, Docker, Semgrep ou conta em lugar nenhum.
-- 🔌 **100% offline depois de instalado** — nunca consulta a Semgrep Registry nem envia métricas.
+- 🔌 **Análise de código offline** — nunca consulta a Semgrep Registry nem envia métricas; a auditoria de dependências, que usa serviços públicos, pode ser desativada com `--no-deps`.
 - 🪟🐧 **Windows e Linux nativamente** — sem WSL, sem container.
 - 📊 **Console, JSON ou Markdown** — saída pronta tanto para ler no terminal quanto para plugar em CI.
 
@@ -29,12 +29,15 @@ juntos e o resultado sai unificado em um único relatório:
   as linguagens que o Semgrep suporta (não só JS/TS), cobrindo os riscos
   do OWASP Top 10 de forma mais ampla que regras hand-rolled sozinhas
   conseguiriam.
-- **Auditoria de dependências** (`npm audit` + [OSV.dev](https://osv.dev)) —
+- **Auditoria de dependências** (`npm audit` + [OSV.dev](https://osv.dev) +
+  [NVD](https://nvd.nist.gov)) —
   identifica vulnerabilidades conhecidas nas dependências reais do
-  projeto (via `package-lock.json`), com a sugestão de correção vindo
-  diretamente do banco consultado. Roda por padrão a partir desta versão
-  e exige rede; use `--no-deps` para um scan 100% offline. Ver
-  [ADR 0005](docs/adr/0005-osv-dependency-database.md).
+  projeto (via `package-lock.json`). O OSV identifica versões afetadas e
+  corrigidas; quando seus aliases contêm CVEs, o NVD enriquece o mesmo
+  finding com CVSS, CWE, referências e dados da CISA. Roda por padrão e
+  exige rede; use `--no-nvd` para manter npm + OSV sem enriquecimento ou
+  `--no-deps` para um scan 100% offline. Ver [ADR 0005](docs/adr/0005-osv-dependency-database.md)
+  e [ADR 0006](docs/adr/0006-nvd-enrichment.md).
 
 Cada achado no relatório mostra o arquivo, a linha, a severidade e qual
 motor encontrou o problema (prefixo `semgrep/` para achados do Semgrep).
@@ -147,6 +150,7 @@ codesentry scan . --json
 codesentry scan . --concurrency 4
 codesentry scan . --config ./rules/security.yml
 codesentry scan . --tests
+codesentry scan . --no-nvd
 codesentry scan . --no-deps
 ```
 
@@ -156,17 +160,53 @@ consulta a Semgrep Registry, não envia métricas e não requer internet após a
 instalação.
 
 Por padrão, `scan` também roda a auditoria de dependências (`npm audit` +
-OSV.dev) e funde os achados no mesmo relatório — isso exige `npm` no `PATH`
-e acesso à rede. Use `--no-deps` para pular essa etapa e manter o scan
-100% offline (CI sem egress, ambientes air-gapped). Ver
-[ADR 0005](docs/adr/0005-osv-dependency-database.md).
+OSV.dev + NVD) e funde os achados no mesmo relatório — isso exige `npm` no
+`PATH` e acesso à rede. O OSV é a fonte principal: o NVD é consultado somente
+para aliases `CVE-` retornados pelo OSV e uma falha do NVD nunca remove o
+finding. Use `--no-nvd` para desativar apenas o enriquecimento ou `--no-deps`
+para pular toda a auditoria e manter o scan 100% offline (CI sem egress,
+ambientes air-gapped).
 
-O console mostra quantos pacotes o `npm audit` cobriu e quantos deles o
+O console mostra quantos pacotes do lockfile foram considerados e quantos o
 OSV.dev conseguiu verificar de fato (`OSV.dev: 360/363 verificados`, por
 exemplo — a diferença indica pacotes cuja consulta falhou, reportados
-também como aviso). No relatório Markdown gerado automaticamente (mais de
-20 problemas), a lista completa de dependências verificadas no OSV.dev
-(`nome@versão`) aparece numa seção própria ao final do arquivo.
+também como aviso). Quando houver CVEs, mostra ainda a cobertura NVD separando
+registros enriquecidos, sem resultado, falhas e cache hits. No relatório
+Markdown gerado automaticamente (mais de 20 problemas), a lista completa de
+dependências verificadas no OSV.dev (`nome@versão`) aparece numa seção própria.
+
+### Chave opcional do NVD
+
+A integração funciona sem autenticação. Para maior capacidade de consulta,
+solicite gratuitamente uma chave no formulário oficial
+[Request an API Key](https://nvd.nist.gov/developers/request-an-api-key),
+confirme a solicitação recebida por e-mail e configure `NVD_API_KEY` no
+ambiente antes de executar o CodeSentry.
+
+Linux/macOS:
+
+```bash
+export NVD_API_KEY="sua-chave"
+codesentry scan .
+
+# Ou somente para uma execução:
+NVD_API_KEY="sua-chave" codesentry dependency-audit .
+```
+
+PowerShell:
+
+```powershell
+$env:NVD_API_KEY = "sua-chave"
+codesentry scan .
+```
+
+A chave é enviada apenas no header `apiKey`; não é adicionada à URL, ao cache,
+a logs ou aos relatórios. O CodeSentry não carrega arquivos `.env`
+automaticamente. Sem chave, as consultas são serializadas com intervalo
+mínimo de 6,1 segundos; com chave, 610 ms. Respostas bem-sucedidas ficam em
+cache por 24 horas e respostas sem resultado por 1 hora. O cache fica no
+diretório de cache do usuário, nunca no projeto analisado. Timeout, rate limit
+ou indisponibilidade do NVD aparecem como aviso e não interrompem o scan.
 
 ### Versões e atualização dos motores
 
@@ -244,7 +284,8 @@ codesentry xss ./src --json          # possíveis XSS (innerHTML, document.write
 codesentry unsafe-sql ./src          # SQL injection por concatenação
 codesentry command-injection ./src   # child_process com entrada não sanitizada
 codesentry weak-hash-algorithm ./src # uso de MD5/SHA-1 para hashing sensível
-codesentry dependency-audit .        # `npm audit` + OSV.dev nas dependências do projeto (sem --tests: não lê arquivos-fonte)
+codesentry dependency-audit .        # npm audit + OSV.dev + NVD (sem --tests: não lê arquivos-fonte)
+codesentry dependency-audit . --no-nvd # mantém npm + OSV e desativa só o NVD
 ```
 
 Assim como em `scan`, `--tests` inclui arquivos de teste na análise (por
