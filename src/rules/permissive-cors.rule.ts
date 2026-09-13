@@ -34,12 +34,30 @@ const isPermissiveCorsCall = (node: SourceNode): boolean => {
       return (args?.length ?? 0) === 0 || isWildcardOriginOption(args?.[0]);
 };
 
+const callExpressionParts = (
+      node: SourceNode,
+): { callee: SourceNode | undefined; args: SourceNode[] | undefined } | undefined => {
+      if (node.type !== 'CallExpression') {
+            return undefined;
+      }
+      return {
+            callee: node.callee as SourceNode | undefined,
+            args: node.arguments as SourceNode[] | undefined,
+      };
+};
+
+const memberCalleeProperty = (callee: SourceNode | undefined): SourceNode | undefined => {
+      if (callee?.type !== 'MemberExpression') {
+            return undefined;
+      }
+      return callee.property as SourceNode | undefined;
+};
+
 const isWildcardOriginHeader = (node: SourceNode): boolean => {
-      const callee = node.type === 'CallExpression' ? (node.callee as SourceNode | undefined) : undefined;
-      const property = callee?.type === 'MemberExpression' ? (callee.property as SourceNode | undefined) : undefined;
-      const args = node.type === 'CallExpression' ? (node.arguments as SourceNode[] | undefined) : undefined;
-      const headerName = args?.[0];
-      const headerValue = args?.[1];
+      const parts = callExpressionParts(node);
+      const property = memberCalleeProperty(parts?.callee);
+      const headerName = parts?.args?.[0];
+      const headerValue = parts?.args?.[1];
       return (
             property?.type === 'Identifier' &&
             HEADER_SETTER_METHODS.has(property.name as string) &&
