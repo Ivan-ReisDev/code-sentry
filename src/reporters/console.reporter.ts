@@ -206,12 +206,15 @@ const nvdResultLines = (results: NvdLookupResult[] | undefined, summary?: string
 const sourcesLabel = (source: 'osv' | 'npm', foundNvd: boolean): string =>
       source === 'osv' ? `OSV${foundNvd ? ', NVD' : ''}` : 'npm';
 
+const ecosystemSuffix = (ecosystem: string | undefined): string =>
+      ecosystem && ecosystem !== 'npm' ? ` (${ecosystem})` : '';
+
 const dependencyBlock = (finding: RuleFinding): string => {
       const dependency = finding.dependency;
       if (!dependency) return '';
       const foundNvd = (dependency.nvd ?? []).some((result) => result.status === 'found');
       const lines = [
-            `Pacote: ${dependency.package.name}`,
+            `Pacote: ${dependency.package.name}${ecosystemSuffix(dependency.package.ecosystem)}`,
             `Versão instalada: ${dependency.package.installedVersion}`,
             `Versão corrigida: ${dependency.package.fixedVersions.join(' ou ') || 'não informada'}`,
             `${dependency.advisory.source.toUpperCase()}: ${dependency.advisory.id ?? 'identificador não informado'}`,

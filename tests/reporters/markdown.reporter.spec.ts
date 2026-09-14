@@ -256,7 +256,11 @@ it('shows the CVSS score in the dependency summary table when NVD found one', ()
                                                       id: 'CVE-2026-12345',
                                                       cwes: [],
                                                       references: [],
-                                                      cvss: { score: 9.8, version: '3.1', vectorString: 'CVSS:3.1/AV:N' },
+                                                      cvss: {
+                                                            score: 9.8,
+                                                            version: '3.1',
+                                                            vectorString: 'CVSS:3.1/AV:N',
+                                                      },
                                                 },
                                           },
                                     ],
@@ -268,6 +272,49 @@ it('shows the CVSS score in the dependency summary table when NVD found one', ()
       );
 
       expect(md).toContain('| pkg@1.0.0 | 🔴 Critical | GHSA-aaaa-bbbb-cccc | CVE-2026-12345 | 9.8 | — |');
+});
+
+it('shows the ecosystem next to the package name only when it is not npm', () => {
+      const md = toMarkdownReport(
+            {
+                  scannedFiles: 1,
+                  durationMs: 1,
+                  findings: [
+                        finding({
+                              ruleId: 'dependency-audit',
+                              file: 'poetry.lock',
+                              dependency: {
+                                    package: {
+                                          name: 'requests',
+                                          installedVersion: '2.28.0',
+                                          fixedVersions: [],
+                                          ecosystem: 'PyPI',
+                                    },
+                                    advisory: { source: 'osv', id: 'GHSA-x', aliases: [] },
+                              },
+                        }),
+                        finding({
+                              ruleId: 'dependency-audit',
+                              file: 'package-lock.json',
+                              dependency: {
+                                    package: {
+                                          name: 'chalk',
+                                          installedVersion: '5.3.0',
+                                          fixedVersions: [],
+                                          ecosystem: 'npm',
+                                    },
+                                    advisory: { source: 'osv', id: 'GHSA-y', aliases: [] },
+                              },
+                        }),
+                  ],
+            },
+            fixedDate,
+      );
+
+      expect(md).toContain('| requests@2.28.0 (PyPI) |');
+      expect(md).toContain('<summary>🟠 High <strong>requests@2.28.0 (PyPI)</strong></summary>');
+      expect(md).toContain('| chalk@5.3.0 |');
+      expect(md).not.toContain('chalk@5.3.0 (npm)');
 });
 
 it('includes dependency and NVD coverage in the report header', () => {

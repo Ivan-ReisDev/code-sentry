@@ -1,5 +1,5 @@
 import type { NvdLookupResult } from '../rules/rule.interface.js';
-import type { LockedPackage } from './package-lock-parser.js';
+import type { LockedPackage } from './lockfiles/locked-package.js';
 import type { NvdClient } from './nvd-client.js';
 import type { OsvVulnerability } from './osv-client.js';
 

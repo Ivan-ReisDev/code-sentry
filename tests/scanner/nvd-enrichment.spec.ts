@@ -4,7 +4,7 @@ import { enrichOsvMatchesWithNvd, extractCveAliases } from '../../src/scanner/nv
 
 const clientWith = (lookup: NvdClient['lookupCve']): NvdClient => ({ lookupCve: lookup, consumeWarnings: () => [] });
 const match = (aliases?: string[]) => ({
-      pkg: { name: 'example', version: '1.0.0' },
+      pkg: { name: 'example', version: '1.0.0', ecosystem: 'npm' as const, lockfile: 'package-lock.json' },
       vuln: { id: 'GHSA-aaaa-bbbb-cccc', aliases, summary: 'Example vulnerability' },
       fixedVersions: ['1.0.1'],
 });
@@ -37,7 +37,18 @@ it('queries each distinct CVE once and reattaches it to every matching dependenc
             },
       }));
       const result = await enrichOsvMatchesWithNvd(
-            [match(['CVE-2026-12345']), { ...match(['CVE-2026-12345']), pkg: { name: 'other', version: '2.0.0' } }],
+            [
+                  match(['CVE-2026-12345']),
+                  {
+                        ...match(['CVE-2026-12345']),
+                        pkg: {
+                              name: 'other',
+                              version: '2.0.0',
+                              ecosystem: 'npm' as const,
+                              lockfile: 'package-lock.json',
+                        },
+                  },
+            ],
             clientWith(lookup),
       );
 

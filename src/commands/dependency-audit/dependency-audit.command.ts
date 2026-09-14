@@ -28,7 +28,9 @@ const auditAndReport = async (path: string, options: ScanOutputOptions): Promise
 export const registerDependencyAuditCommand = (program: Command): void => {
       program
             .command('dependency-audit')
-            .description('Audita dependências via npm audit e OSV.dev, com enriquecimento opcional do NVD')
+            .description(
+                  'Audita dependências (npm/pnpm/Yarn via npm audit + OSV.dev; Python via OSV.dev) com enriquecimento opcional do NVD',
+            )
             .argument('[path]', 'diretório do projeto a ser auditado', '.')
             .option('--json', 'exibe o resultado em JSON')
             .option('--no-nvd', 'não enriquece os resultados OSV com dados do NVD')

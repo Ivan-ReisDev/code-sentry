@@ -25,8 +25,16 @@ dados `command → scanner → rules → reporter`.
 │   │   ├── run-with-concurrency-limit.ts
 │   │   ├── scan-result.ts            # ScanResult, ScanEngines, mergeScanResults
 │   │   ├── dependency-audit.ts       # combina npm audit, OSV.dev e enriquecimento NVD
-│   │   ├── package-lock-parser.ts    # enumera dependências reais via package-lock.json
-│   │   ├── osv-client.ts             # cliente HTTP do OSV.dev (querybatch + detalhe por id)
+│   │   ├── lockfiles/                # um parser por formato de lockfile — ver ADR 0007
+│   │   │   ├── locked-package.ts     # LockedPackage/Ecosystem — shape comum a todo parser
+│   │   │   ├── pypi-name.ts          # normalizePyPiName() — PEP 503, usado pelos parsers Python
+│   │   │   ├── package-lock-parser.ts    # npm — package-lock.json (lockfileVersion 2/3)
+│   │   │   ├── pnpm-lock-parser.ts       # pnpm — pnpm-lock.yaml (v5/v6/v9)
+│   │   │   ├── yarn-lock-parser.ts       # Yarn — yarn.lock (Classic v1 e Berry v2+)
+│   │   │   ├── poetry-lock-parser.ts     # Python/Poetry — poetry.lock
+│   │   │   ├── requirements-txt-parser.ts # Python/pip — requirements.txt (só pins exatos "==")
+│   │   │   └── lockfile-discovery.ts # acha e agrega todos os lockfiles suportados presentes
+│   │   ├── osv-client.ts             # cliente HTTP do OSV.dev (querybatch + detalhe por id, multi-ecossistema)
 │   │   ├── nvd-client.ts             # HTTP, pacing, timeout, retry e circuit breaker do NVD
 │   │   ├── nvd-normalizer.ts         # normaliza o schema variável da NVD API 2.0
 │   │   ├── nvd-cache.ts              # cache persistente por CVE, versionado e com TTL
@@ -105,7 +113,7 @@ dados `command → scanner → rules → reporter`.
       - **Semgrep embutido** (`scanner/semgrep.ts`): roda o ruleset `p/owasp-top-ten` (resolvido por `semgrep-rules.ts`) usando o runtime da plataforma atual (resolvido por `semgrep-runtime.ts`), e mapeia o JSON de saída para o mesmo formato de finding.
       - **Arquivos de teste** (`scanner/ignore-patterns.ts`): por padrão, nenhum dos dois motores acima analisa diretórios chamados `tests`/`test`/`__tests__` nem arquivos com sufixo `.spec.*`/`.test.*`, em qualquer profundidade — essa é a única fonte de verdade consultada tanto por `file-finder.ts` quanto pela lista de `--exclude` passada ao Semgrep. A flag `--tests` (presente em `scan` e em todo comando individual por regra) desliga essa exclusão.
       - `scan-result.ts#mergeScanResults` une motor nativo e Semgrep em um único `ScanResult`, com a cobertura de cada motor em `engines`.
-      - **Auditoria de dependências** (`scanner/dependency-audit.ts`): por padrão, `scan` roda `npm audit` e consulta o OSV.dev para os pacotes do `package-lock.json`. Matches OSV são enriquecidos pelo NVD somente quando possuem alias CVE. O enriquecedor deduplica CVEs globalmente e anexa resultados `found`, `not-found` ou `error` ao finding estruturado; falhas NVD não interrompem o scan. `--no-nvd` desativa apenas esse enriquecimento e `--no-deps` pula toda a etapa para um scan 100% offline. Ver [ADR 0005](adr/0005-osv-dependency-database.md) e [ADR 0006](adr/0006-nvd-enrichment.md).
+      - **Auditoria de dependências** (`scanner/dependency-audit.ts`): por padrão, `scan` consulta o OSV.dev para os pacotes de todo lockfile suportado presente no diretório (`scanner/lockfiles/lockfile-discovery.ts` acha e combina todos os encontrados — um projeto poliglota tem npm e Python auditados juntos). `npm audit` roda como fonte adicional só quando existe `package-lock.json`/`npm-shrinkwrap.json` — do contrário essa etapa é pulada com um aviso e o OSV.dev segue sozinho. Matches OSV são enriquecidos pelo NVD somente quando possuem alias CVE. O enriquecedor deduplica CVEs globalmente e anexa resultados `found`, `not-found` ou `error` ao finding estruturado; falhas NVD não interrompem o scan. `--no-nvd` desativa apenas esse enriquecimento e `--no-deps` pula toda a etapa para um scan 100% offline. Ver [ADR 0005](adr/0005-osv-dependency-database.md), [ADR 0006](adr/0006-nvd-enrichment.md) e [ADR 0007](adr/0007-multi-ecosystem-lockfiles.md).
       - **Modelo de dependência** (`rules/rule.interface.ts`): os cinco campos históricos de `RuleFinding` permanecem obrigatórios. Findings de dependência acrescentam `dependency`, com pacote, advisory, aliases e resultados NVD normalizados. Reporters não fazem parsing da string `message`.
       - **Cobertura NVD** (`scanner/scan-result.ts`): `engines.nvd` registra total de CVEs distintos, enriquecidos, sem resultado, falhas e cache hits; `false` significa que a integração foi desativada.
 4. O resultado é passado para um `reporter` (`console.reporter.ts`, `json.reporter.ts` ou, quando há mais de 20 problemas, também `markdown.reporter.ts`), que exibe ou exporta o relatório final.

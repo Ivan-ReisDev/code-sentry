@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { NvdLookupResult, RuleFinding, Severity } from '../rules/rule.interface.js';
@@ -16,11 +16,13 @@ import {
       extractFixedVersions,
       fetchOsvVulnerabilityDetails,
       mapOsvSeverity,
+      osvPackageKey,
       queryOsvBatch,
       type FetchLike,
       type OsvVulnerability,
 } from './osv-client.js';
-import { parsePackageLock, type LockedPackage } from './package-lock-parser.js';
+import { discoverLockedPackages, SUPPORTED_LOCKFILES, type LockfileDiscovery } from './lockfiles/lockfile-discovery.js';
+import type { LockedPackage } from './lockfiles/locked-package.js';
 import type { ScanResult } from './scan-result.js';
 
 const execFileAsync = promisify(execFile);
@@ -156,7 +158,7 @@ export const mapAuditReportToFindings = (
       osvIdsByPackage: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): RuleFinding[] =>
       Object.values(report.vulnerabilities).flatMap((vulnerability) => {
-            const osvIds = osvIdsByPackage.get(vulnerability.name) ?? new Set<string>();
+            const osvIds = osvIdsByPackage.get(`npm:${vulnerability.name}`) ?? new Set<string>();
             return npmAdvisoryEntries(vulnerability).flatMap((advisory) => {
                   const ids = advisoryIds(advisory);
                   return ids.some((id) => osvIds.has(id)) ? [] : [npmFinding(vulnerability, advisory, ids)];
@@ -194,7 +196,7 @@ const highestNvdSeverity = (results: NvdLookupResult[]): Severity | undefined =>
 const buildOsvFinding = (match: EnrichedOsvAdvisoryMatch): RuleFinding => ({
       ruleId: 'dependency-audit',
       message: `OSV ${match.vuln.id}: ${match.pkg.name}@${match.pkg.version} — ${match.vuln.summary ?? 'ver OSV.dev para detalhes'} — ${osvFixSuggestion(match.fixedVersions)}`,
-      file: 'package-lock.json',
+      file: match.pkg.lockfile,
       line: 1,
       severity: highestNvdSeverity(match.nvd) ?? mapOsvSeverity(match.vuln),
       dependency: {
@@ -202,6 +204,7 @@ const buildOsvFinding = (match: EnrichedOsvAdvisoryMatch): RuleFinding => ({
                   name: match.pkg.name,
                   installedVersion: match.pkg.version,
                   fixedVersions: match.fixedVersions,
+                  ecosystem: match.pkg.ecosystem,
             },
             advisory: {
                   source: 'osv',
@@ -225,10 +228,10 @@ const collectMatches = (
       detailsById: Map<string, OsvVulnerability>,
 ): OsvAdvisoryMatch[] =>
       lockedPackages.flatMap((pkg) =>
-            [...new Set(vulnIdsByPackage.get(`${pkg.name}@${pkg.version}`) ?? [])]
+            [...new Set(vulnIdsByPackage.get(osvPackageKey(pkg)) ?? [])]
                   .map((id) => detailsById.get(id))
                   .filter((vuln): vuln is OsvVulnerability => vuln !== undefined)
-                  .map((vuln) => ({ pkg, vuln, fixedVersions: extractFixedVersions(vuln, pkg.name) })),
+                  .map((vuln) => ({ pkg, vuln, fixedVersions: extractFixedVersions(vuln, pkg.name, pkg.ecosystem) })),
       );
 
 export const mapOsvFindingsToRuleFindings = (
@@ -329,12 +332,57 @@ const runNpmAudit = async (targetDir: string): Promise<unknown> => {
       return JSON.parse(stdout) as unknown;
 };
 
+const NPM_AUDIT_LOCKFILES = ['package-lock.json', 'npm-shrinkwrap.json'];
+
+const fileExists = async (targetDir: string, filename: string): Promise<boolean> => {
+      try {
+            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- filename comes from the fixed NPM_AUDIT_LOCKFILES list, never attacker input.
+            await access(join(targetDir, filename));
+            return true;
+      } catch {
+            return false;
+      }
+};
+
+const hasNpmAuditLockfile = async (targetDir: string): Promise<boolean> => {
+      try {
+            const checks = await Promise.all(NPM_AUDIT_LOCKFILES.map((filename) => fileExists(targetDir, filename)));
+            return checks.some(Boolean);
+      } catch {
+            return false;
+      }
+};
+
+const skippedNpmAuditResult = (targetDir: string): { report: NpmAuditReport; warning: string; ran: false } => ({
+      report: { vulnerabilities: {} },
+      warning: `"npm audit" foi ignorado: "${targetDir}" não tem package-lock.json/npm-shrinkwrap.json (npm audit exige o lockfile do npm). A auditoria seguiu apenas com o OSV.dev.`,
+      ran: false,
+});
+
+const runNpmAuditIfLockfilePresent = async (
+      targetDir: string,
+      npmAuditRunner: (targetDir: string) => Promise<unknown>,
+): Promise<{ report: NpmAuditReport; warning?: string; ran: boolean }> => {
+      try {
+            if (!(await hasNpmAuditLockfile(targetDir))) return skippedNpmAuditResult(targetDir);
+            const { report, warning } = normalizeNpmAuditReport(await npmAuditRunner(targetDir));
+            return { report, warning, ran: true };
+      } catch (error) {
+            return {
+                  report: { vulnerabilities: {} },
+                  warning: `Não foi possível executar "npm audit": ${errorMessage(error)}.`,
+                  ran: false,
+            };
+      }
+};
+
 const osvIdentityIndex = (matches: OsvAdvisoryMatch[]): Map<string, ReadonlySet<string>> => {
       const index = new Map<string, Set<string>>();
       matches.forEach((match) => {
-            const ids = index.get(match.pkg.name) ?? new Set<string>();
+            const key = `${match.pkg.ecosystem}:${match.pkg.name}`;
+            const ids = index.get(key) ?? new Set<string>();
             [match.vuln.id, ...(match.vuln.aliases ?? [])].forEach((id) => ids.add(id.trim().toUpperCase()));
-            index.set(match.pkg.name, ids);
+            index.set(key, ids);
       });
       return index;
 };
@@ -399,6 +447,9 @@ const enrichWithNvdIfEnabled = async (
       }
 };
 
+const checkedPackageLabel = (pkg: LockedPackage): string =>
+      pkg.ecosystem === 'npm' ? `${pkg.name}@${pkg.version}` : `${pkg.name}@${pkg.version} (${pkg.ecosystem})`;
+
 const successfulLockfileAudit = (
       lockedPackages: LockedPackage[],
       collected: OsvCollection,
@@ -408,39 +459,65 @@ const successfulLockfileAudit = (
       matches: collected.matches,
       packagesAudited: lockedPackages.length,
       osvChecked: { checked: collected.checkedPackages.length, total: lockedPackages.length },
-      osvCheckedPackages: collected.checkedPackages.map((pkg) => `${pkg.name}@${pkg.version}`).sort(),
+      osvCheckedPackages: collected.checkedPackages.map(checkedPackageLabel).sort(),
       nvd: enrichment.nvd,
       warnings: [...collected.warnings, ...enrichment.warnings],
+});
+
+const NO_LOCKFILES_WARNING = `Nenhum lockfile suportado foi encontrado (${SUPPORTED_LOCKFILES.map((source) => source.filename).join(', ')}).`;
+
+const emptyLockfileAuditResult = (discovery: LockfileDiscovery): LockfileAuditResult => ({
+      findings: [],
+      matches: [],
+      packagesAudited: false,
+      warnings: [...discovery.warnings, NO_LOCKFILES_WARNING],
+});
+
+const failedLockfileAudit = (
+      discovery: LockfileDiscovery,
+      options: ResolvedAuditOptions,
+      error: unknown,
+): LockfileAuditResult => ({
+      findings: [],
+      matches: [],
+      packagesAudited: false,
+      nvd: options.nvdEnabled ? { total: 0, enriched: 0, notFound: 0, failed: 0, cacheHits: 0 } : false,
+      warnings: [...discovery.warnings, `Não foi possível checar o OSV.dev: ${errorMessage(error)}.`],
 });
 
 const auditPackagesFromLockfile = async (
       targetDir: string,
       options: ResolvedAuditOptions,
 ): Promise<LockfileAuditResult> => {
+      let discovery: LockfileDiscovery = { packages: [], lockfilesFound: [], warnings: [] };
       try {
-            // codesentry-disable-next-line security/detect-non-literal-fs-filename -- targetDir is the CLI's own path argument.
-            const raw = await readFile(join(targetDir, 'package-lock.json'), 'utf-8');
-            const lockedPackages = parsePackageLock(raw);
-            const collected = await collectOsvMatches(lockedPackages, options.fetchImpl);
+            discovery = await discoverLockedPackages(targetDir);
+            if (discovery.lockfilesFound.length === 0) return emptyLockfileAuditResult(discovery);
+            const collected = await collectOsvMatches(discovery.packages, options.fetchImpl);
             const enrichment = await enrichWithNvdIfEnabled(collected, options);
-            return successfulLockfileAudit(lockedPackages, collected, enrichment);
+            const result = successfulLockfileAudit(discovery.packages, collected, enrichment);
+            return { ...result, warnings: [...discovery.warnings, ...result.warnings] };
       } catch (error) {
-            return {
-                  findings: [],
-                  matches: [],
-                  packagesAudited: false,
-                  nvd: options.nvdEnabled ? { total: 0, enriched: 0, notFound: 0, failed: 0, cacheHits: 0 } : false,
-                  warnings: [`Não foi possível checar o OSV.dev: ${errorMessage(error)}.`],
-            };
+            return failedLockfileAudit(discovery, options, error);
       }
 };
 
 const normalizeOptions = (optionsOrFetch: DependencyAuditOptions | FetchLike | undefined): DependencyAuditOptions =>
       typeof optionsOrFetch === 'function' ? { fetchImpl: optionsOrFetch } : (optionsOrFetch ?? {});
 
+const dependencyAuditCount = (
+      npmReport: NpmAuditReport,
+      npmAuditRan: boolean,
+      osv: LockfileAuditResult,
+): number | false => {
+      if (osv.packagesAudited !== false) return osv.packagesAudited;
+      return npmAuditRan ? Object.keys(npmReport.vulnerabilities).length : false;
+};
+
 const buildDependencyAuditResult = (
       startedAt: number,
       npmReport: NpmAuditReport,
+      npmAuditRan: boolean,
       npmWarning: string | undefined,
       osv: LockfileAuditResult,
 ): ScanResult => {
@@ -451,10 +528,7 @@ const buildDependencyAuditResult = (
             findings: [...npmFindings, ...osv.findings],
             durationMs: Date.now() - startedAt,
             engines: {
-                  dependencyAudit:
-                        osv.packagesAudited === false
-                              ? Object.keys(npmReport.vulnerabilities).length
-                              : osv.packagesAudited,
+                  dependencyAudit: dependencyAuditCount(npmReport, npmAuditRan, osv),
                   osv: osv.osvChecked,
                   nvd: osv.nvd,
             },
@@ -475,11 +549,13 @@ export const runDependencyAudit = async (
             nvdEnabled: supplied.nvdEnabled ?? true,
       };
       try {
-            const { report: npmReport, warning: npmWarning } = normalizeNpmAuditReport(
-                  await (options.npmAuditRunner ?? runNpmAudit)(targetDir),
-            );
+            const {
+                  report: npmReport,
+                  warning: npmWarning,
+                  ran: npmAuditRan,
+            } = await runNpmAuditIfLockfilePresent(targetDir, options.npmAuditRunner ?? runNpmAudit);
             const osv = await auditPackagesFromLockfile(targetDir, options);
-            return buildDependencyAuditResult(startedAt, npmReport, npmWarning, osv);
+            return buildDependencyAuditResult(startedAt, npmReport, npmAuditRan, npmWarning, osv);
       } catch (error) {
             throw new Error(`Não foi possível auditar dependências em "${targetDir}".`, { cause: error });
       }

@@ -28,11 +28,16 @@ export interface OsvVulnerability {
 export interface OsvPackageQuery {
       name: string;
       version: string;
+      ecosystem: string;
 }
 
-export interface OsvBatchResult {
+/** Identity key for a package query, scoped by ecosystem — two ecosystems can share a package name. */
+export const osvPackageKey = (pkg: Pick<OsvPackageQuery, 'name' | 'version' | 'ecosystem'>): string =>
+      `${pkg.ecosystem}:${pkg.name}@${pkg.version}`;
+
+export interface OsvBatchResult<T extends OsvPackageQuery = OsvPackageQuery> {
       vulnIdsByPackage: Map<string, string[]>;
-      checkedPackages: OsvPackageQuery[];
+      checkedPackages: T[];
       warning?: string;
 }
 
@@ -75,29 +80,32 @@ interface OsvBatchResponseBody {
       results?: { vulns?: { id: string }[] }[];
 }
 
-const zipVulnIdsByPackage = (packages: OsvPackageQuery[], body: OsvBatchResponseBody): Map<string, string[]> => {
+const zipVulnIdsByPackage = <T extends OsvPackageQuery>(
+      packages: T[],
+      body: OsvBatchResponseBody,
+): Map<string, string[]> => {
       const vulnIdsByPackage = new Map<string, string[]>();
       packages.forEach((pkg, index) => {
             // codesentry-disable-next-line security/detect-object-injection -- index comes from Array.prototype.forEach over the same-length packages array sent in the request, never an attacker-controlled key.
             const ids = body.results?.[index]?.vulns?.map((v) => v.id);
             if (ids?.length) {
-                  vulnIdsByPackage.set(`${pkg.name}@${pkg.version}`, ids);
+                  vulnIdsByPackage.set(osvPackageKey(pkg), ids);
             }
       });
       return vulnIdsByPackage;
 };
 
-const queryBatchChunk = async (
-      packages: OsvPackageQuery[],
+const queryBatchChunk = async <T extends OsvPackageQuery>(
+      packages: T[],
       fetchImpl: FetchLike,
-): Promise<{ vulnIdsByPackage: Map<string, string[]>; checkedPackages: OsvPackageQuery[]; failedCount: number }> => {
+): Promise<{ vulnIdsByPackage: Map<string, string[]>; checkedPackages: T[]; failedCount: number }> => {
       try {
             const response = await fetchImpl(`${OSV_API_BASE}/querybatch`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                         queries: packages.map((p) => ({
-                              package: { name: p.name, ecosystem: 'npm' },
+                              package: { name: p.name, ecosystem: p.ecosystem },
                               version: p.version,
                         })),
                   }),
@@ -112,12 +120,12 @@ const queryBatchChunk = async (
       }
 };
 
-export const queryOsvBatch = async (
-      packages: OsvPackageQuery[],
+export const queryOsvBatch = async <T extends OsvPackageQuery>(
+      packages: T[],
       fetchImpl: FetchLike = fetch,
-): Promise<OsvBatchResult> => {
+): Promise<OsvBatchResult<T>> => {
       const vulnIdsByPackage = new Map<string, string[]>();
-      const checkedPackages: OsvPackageQuery[] = [];
+      const checkedPackages: T[] = [];
       let failedCount = 0;
 
       try {
@@ -182,12 +190,12 @@ export const fetchOsvVulnerabilityDetails = async (
       };
 };
 
-const isMatchingNpmPackage = (affected: OsvAffected, packageName: string): boolean =>
-      affected.package.ecosystem === 'npm' && affected.package.name === packageName;
+const isMatchingPackage = (affected: OsvAffected, packageName: string, ecosystem: string): boolean =>
+      affected.package.ecosystem === ecosystem && affected.package.name === packageName;
 
-export const extractFixedVersions = (vuln: OsvVulnerability, packageName: string): string[] => {
+export const extractFixedVersions = (vuln: OsvVulnerability, packageName: string, ecosystem: string): string[] => {
       const fixedVersions = (vuln.affected ?? [])
-            .filter((affected) => isMatchingNpmPackage(affected, packageName))
+            .filter((affected) => isMatchingPackage(affected, packageName, ecosystem))
             .flatMap((affected) => affected.ranges ?? [])
             .flatMap((range) => range.events)
             .map((event) => event.fixed)

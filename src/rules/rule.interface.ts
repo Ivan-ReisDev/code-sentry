@@ -73,6 +73,8 @@ export interface DependencyFindingDetails {
             name: string;
             installedVersion: string;
             fixedVersions: string[];
+            /** Package ecosystem (e.g. "npm", "PyPI") — absent for npm-audit findings, which are always npm. */
+            ecosystem?: string;
       };
       advisory: {
             source: 'osv' | 'npm';

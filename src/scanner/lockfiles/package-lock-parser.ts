@@ -1,7 +1,8 @@
-export interface LockedPackage {
-      name: string;
-      version: string;
-}
+import type { LockedPackage } from './locked-package.js';
+
+export type { LockedPackage } from './locked-package.js';
+
+const LOCKFILE_NAME = 'package-lock.json';
 
 interface LockPackageEntry {
       name?: string;
@@ -30,7 +31,7 @@ const toLockedPackage = (key: string, entry: LockPackageEntry): LockedPackage | 
             return undefined;
       }
       const name = entry.name ?? nameFromKey(key);
-      return name ? { name, version: entry.version } : undefined;
+      return name ? { name, version: entry.version, ecosystem: 'npm', lockfile: LOCKFILE_NAME } : undefined;
 };
 
 const assertSupportedLockfileVersion = (lockfileVersion: number): void => {

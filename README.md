@@ -32,12 +32,21 @@ juntos e o resultado sai unificado em um único relatório:
 - **Auditoria de dependências** (`npm audit` + [OSV.dev](https://osv.dev) +
   [NVD](https://nvd.nist.gov)) —
   identifica vulnerabilidades conhecidas nas dependências reais do
-  projeto (via `package-lock.json`). O OSV identifica versões afetadas e
-  corrigidas; quando seus aliases contêm CVEs, o NVD enriquece o mesmo
-  finding com CVSS, CWE, referências e dados da CISA. Roda por padrão e
-  exige rede; use `--no-nvd` para manter npm + OSV sem enriquecimento ou
-  `--no-deps` para um scan 100% offline. Ver [ADR 0005](docs/adr/0005-osv-dependency-database.md)
-  e [ADR 0006](docs/adr/0006-nvd-enrichment.md).
+  projeto, lendo o lockfile presente: `package-lock.json`, `pnpm-lock.yaml`
+  ou `yarn.lock` para JS/TS (ecossistema npm), e `poetry.lock` ou
+  `requirements.txt` (só linhas com pin exato `==`) para Python (ecossistema
+  PyPI). Se houver mais de um lockfile no projeto (ex.: um monorepo
+  poliglota), todos os suportados são lidos e combinados num único
+  relatório. O OSV identifica versões afetadas e corrigidas; quando seus
+  aliases contêm CVEs, o NVD enriquece o mesmo finding com CVSS, CWE,
+  referências e dados da CISA. `npm audit` só roda quando existe
+  `package-lock.json`/`npm-shrinkwrap.json` — um projeto só-pnpm ou só-Yarn
+  tem cobertura só do OSV.dev (npm audit exige seu próprio lockfile). Roda
+  por padrão e exige rede; use `--no-nvd` para manter npm + OSV sem
+  enriquecimento ou `--no-deps` para um scan 100% offline. Ver
+  [ADR 0005](docs/adr/0005-osv-dependency-database.md),
+  [ADR 0006](docs/adr/0006-nvd-enrichment.md) e
+  [ADR 0007](docs/adr/0007-multi-ecosystem-lockfiles.md).
 
 Cada achado no relatório mostra o arquivo, a linha, a severidade e qual
 motor encontrou o problema (prefixo `semgrep/` para achados do Semgrep).
@@ -160,20 +169,25 @@ consulta a Semgrep Registry, não envia métricas e não requer internet após a
 instalação.
 
 Por padrão, `scan` também roda a auditoria de dependências (`npm audit` +
-OSV.dev + NVD) e funde os achados no mesmo relatório — isso exige `npm` no
-`PATH` e acesso à rede. O OSV é a fonte principal: o NVD é consultado somente
+OSV.dev + NVD) e funde os achados no mesmo relatório — isso exige acesso à
+rede. `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `poetry.lock` e
+`requirements.txt` são detectados automaticamente (todos os presentes são
+lidos); `npm audit` em si só roda quando existe
+`package-lock.json`/`npm-shrinkwrap.json` — pnpm/Yarn/Python ficam só com a
+cobertura do OSV.dev. O OSV é a fonte principal: o NVD é consultado somente
 para aliases `CVE-` retornados pelo OSV e uma falha do NVD nunca remove o
 finding. Use `--no-nvd` para desativar apenas o enriquecimento ou `--no-deps`
 para pular toda a auditoria e manter o scan 100% offline (CI sem egress,
 ambientes air-gapped).
 
-O console mostra quantos pacotes do lockfile foram considerados e quantos o
+O console mostra quantos pacotes dos lockfiles foram considerados e quantos o
 OSV.dev conseguiu verificar de fato (`OSV.dev: 360/363 verificados`, por
 exemplo — a diferença indica pacotes cuja consulta falhou, reportados
 também como aviso). Quando houver CVEs, mostra ainda a cobertura NVD separando
 registros enriquecidos, sem resultado, falhas e cache hits. No relatório
 Markdown gerado automaticamente (mais de 20 problemas), a lista completa de
-dependências verificadas no OSV.dev (`nome@versão`) aparece numa seção própria.
+dependências verificadas no OSV.dev (`nome@versão`, com `(PyPI)` etc. quando
+não for npm) aparece numa seção própria.
 
 ### Chave opcional do NVD
 
@@ -284,7 +298,7 @@ codesentry xss ./src --json          # possíveis XSS (innerHTML, document.write
 codesentry unsafe-sql ./src          # SQL injection por concatenação
 codesentry command-injection ./src   # child_process com entrada não sanitizada
 codesentry weak-hash-algorithm ./src # uso de MD5/SHA-1 para hashing sensível
-codesentry dependency-audit .        # npm audit + OSV.dev + NVD (sem --tests: não lê arquivos-fonte)
+codesentry dependency-audit .        # npm/pnpm/Yarn + Python via OSV.dev, + npm audit + NVD (sem --tests: não lê arquivos-fonte)
 codesentry dependency-audit . --no-nvd # mantém npm + OSV e desativa só o NVD
 ```
 

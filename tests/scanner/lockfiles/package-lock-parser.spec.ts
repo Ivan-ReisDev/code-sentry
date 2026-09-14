@@ -1,10 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { parsePackageLock } from '../../src/scanner/package-lock-parser.js';
+import { parsePackageLock } from '../../../src/scanner/lockfiles/package-lock-parser.js';
 
 const lockJson = (packages: Record<string, unknown>, lockfileVersion = 3): string =>
       JSON.stringify({ lockfileVersion, packages });
+
+const npmEntry = (name: string, version: string) => ({
+      name,
+      version,
+      ecosystem: 'npm',
+      lockfile: 'package-lock.json',
+});
 
 it('parses a lockfileVersion 3 packages map into name+version pairs, excluding the root entry', () => {
       const raw = lockJson({
@@ -12,7 +19,7 @@ it('parses a lockfileVersion 3 packages map into name+version pairs, excluding t
             'node_modules/chalk': { version: '6.0.0', resolved: 'https://registry.npmjs.org/chalk/-/chalk-6.0.0.tgz' },
       });
 
-      expect(parsePackageLock(raw)).toEqual([{ name: 'chalk', version: '6.0.0' }]);
+      expect(parsePackageLock(raw)).toEqual([npmEntry('chalk', '6.0.0')]);
 });
 
 it('derives scoped package names correctly from nested node_modules paths', () => {
@@ -28,10 +35,7 @@ it('derives scoped package names correctly from nested node_modules paths', () =
       });
 
       expect(parsePackageLock(raw)).toEqual(
-            expect.arrayContaining([
-                  { name: '@babel/core', version: '8.0.1' },
-                  { name: '@babel/core', version: '7.0.0' },
-            ]),
+            expect.arrayContaining([npmEntry('@babel/core', '8.0.1'), npmEntry('@babel/core', '7.0.0')]),
       );
 });
 
@@ -44,7 +48,7 @@ it("prefers the entry's own name field over the folder-derived name (npm aliases
             },
       });
 
-      expect(parsePackageLock(raw)).toEqual([{ name: 'real-name', version: '1.2.3' }]);
+      expect(parsePackageLock(raw)).toEqual([npmEntry('real-name', '1.2.3')]);
 });
 
 it('skips entries whose key is not under node_modules/ (root and local workspace source paths)', () => {
@@ -54,7 +58,7 @@ it('skips entries whose key is not under node_modules/ (root and local workspace
             'node_modules/chalk': { version: '6.0.0' },
       });
 
-      expect(parsePackageLock(raw)).toEqual([{ name: 'chalk', version: '6.0.0' }]);
+      expect(parsePackageLock(raw)).toEqual([npmEntry('chalk', '6.0.0')]);
 });
 
 it('skips link:true workspace entries', () => {
@@ -63,7 +67,7 @@ it('skips link:true workspace entries', () => {
             'node_modules/chalk': { version: '6.0.0' },
       });
 
-      expect(parsePackageLock(raw)).toEqual([{ name: 'chalk', version: '6.0.0' }]);
+      expect(parsePackageLock(raw)).toEqual([npmEntry('chalk', '6.0.0')]);
 });
 
 it('skips entries whose resolved field points to a git or file source', () => {
@@ -73,7 +77,7 @@ it('skips entries whose resolved field points to a git or file source', () => {
             'node_modules/chalk': { version: '6.0.0', resolved: 'https://registry.npmjs.org/chalk/-/chalk-6.0.0.tgz' },
       });
 
-      expect(parsePackageLock(raw)).toEqual([{ name: 'chalk', version: '6.0.0' }]);
+      expect(parsePackageLock(raw)).toEqual([npmEntry('chalk', '6.0.0')]);
 });
 
 it('dedupes identical name+version pairs from multiple nested copies', () => {
@@ -82,7 +86,7 @@ it('dedupes identical name+version pairs from multiple nested copies', () => {
             'node_modules/foo/node_modules/chalk': { version: '6.0.0' },
       });
 
-      expect(parsePackageLock(raw)).toEqual([{ name: 'chalk', version: '6.0.0' }]);
+      expect(parsePackageLock(raw)).toEqual([npmEntry('chalk', '6.0.0')]);
 });
 
 it('throws a clear error for lockfileVersion 1', () => {
@@ -101,6 +105,10 @@ it("parses this repository's own package-lock.json without throwing", () => {
       const packages = parsePackageLock(raw);
 
       expect(packages.length).toBeGreaterThan(300);
-      expect(packages).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'chalk' })]));
+      expect(packages).toEqual(
+            expect.arrayContaining([
+                  expect.objectContaining({ name: 'chalk', ecosystem: 'npm', lockfile: 'package-lock.json' }),
+            ]),
+      );
       expect(packages.some((p) => p.name === 'codesentry-semgrep-rules')).toBe(false);
 });

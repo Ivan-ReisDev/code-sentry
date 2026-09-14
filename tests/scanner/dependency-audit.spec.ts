@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { LockedPackage } from '../../src/scanner/package-lock-parser.js';
+import type { LockedPackage } from '../../src/scanner/lockfiles/locked-package.js';
 import type { OsvVulnerability } from '../../src/scanner/osv-client.js';
 import {
       auditPackagesWithOsv,
@@ -8,6 +8,20 @@ import {
       normalizeNpmAuditReport,
       type NpmAuditReport,
 } from '../../src/scanner/dependency-audit.js';
+
+const npmPkg = (name: string, version: string): LockedPackage => ({
+      name,
+      version,
+      ecosystem: 'npm',
+      lockfile: 'package-lock.json',
+});
+
+const pypiPkg = (name: string, version: string): LockedPackage => ({
+      name,
+      version,
+      ecosystem: 'PyPI',
+      lockfile: 'poetry.lock',
+});
 
 it('maps a vulnerability from an npm audit report to a finding', () => {
       const report: NpmAuditReport = {
@@ -150,8 +164,8 @@ const lodashRedosVuln: OsvVulnerability = {
 
 it('keeps OSV findings even when npm audit also flagged the package, because OSV is primary', () => {
       const findings = mapOsvFindingsToRuleFindings(
-            [{ name: 'lodash', version: '4.17.15' }],
-            new Map([['lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
+            [npmPkg('lodash', '4.17.15')],
+            new Map([['npm:lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
             new Map([['GHSA-29mw-wpgm-hmr9', lodashRedosVuln]]),
             new Set(['lodash']),
       );
@@ -178,7 +192,7 @@ it('deduplicates a npm advisory only when its canonical id matches OSV for the s
             },
       };
 
-      const findings = mapAuditReportToFindings(report, new Map([['lodash', new Set(['GHSA-AAAA-BBBB-CCCC'])]]));
+      const findings = mapAuditReportToFindings(report, new Map([['npm:lodash', new Set(['GHSA-AAAA-BBBB-CCCC'])]]));
 
       expect(findings).toHaveLength(1);
       expect(findings[0].message).toContain('distinct npm advisory');
@@ -209,8 +223,8 @@ it('does not duplicate equivalent npm advisory entries or render transitive via 
 
 it('keeps OSV findings for packages npm audit did not flag, with the fix version from OSV itself', () => {
       const findings = mapOsvFindingsToRuleFindings(
-            [{ name: 'lodash', version: '4.17.15' }],
-            new Map([['lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
+            [npmPkg('lodash', '4.17.15')],
+            new Map([['npm:lodash@4.17.15', ['GHSA-29mw-wpgm-hmr9']]]),
             new Map([['GHSA-29mw-wpgm-hmr9', lodashRedosVuln]]),
             new Set(),
       );
@@ -233,8 +247,8 @@ it('normalizes and deduplicates CVE aliases while preserving non-CVE aliases', (
             aliases: [' cve-2026-12345 ', 'CVE-2026-12345', 'GHSA-29mw-wpgm-hmr9'],
       };
       const findings = mapOsvFindingsToRuleFindings(
-            [{ name: 'lodash', version: '4.17.15' }],
-            new Map([['lodash@4.17.15', [vulnerability.id]]]),
+            [npmPkg('lodash', '4.17.15')],
+            new Map([['npm:lodash@4.17.15', [vulnerability.id]]]),
             new Map([[vulnerability.id, vulnerability]]),
       );
 
@@ -243,8 +257,8 @@ it('normalizes and deduplicates CVE aliases while preserving non-CVE aliases', (
 
 it('falls back to an honest "no fix published" message when OSV has no fixed event for that package', () => {
       const findings = mapOsvFindingsToRuleFindings(
-            [{ name: 'lodash.trimend', version: '4.5.1' }],
-            new Map([['lodash.trimend@4.5.1', ['GHSA-29mw-wpgm-hmr9']]]),
+            [npmPkg('lodash.trimend', '4.5.1')],
+            new Map([['npm:lodash.trimend@4.5.1', ['GHSA-29mw-wpgm-hmr9']]]),
             new Map([['GHSA-29mw-wpgm-hmr9', lodashRedosVuln]]),
             new Set(),
       );
@@ -252,8 +266,45 @@ it('falls back to an honest "no fix published" message when OSV has no fixed eve
       expect(findings[0].message).toContain('nenhuma versão corrigida publicada pelo OSV.dev ainda');
 });
 
+it('attributes an OSV finding to the lockfile and ecosystem of the package it came from', () => {
+      const requestsVuln: OsvVulnerability = {
+            id: 'GHSA-requests-pypi',
+            summary: 'Example PyPI advisory',
+            affected: [{ package: { name: 'requests', ecosystem: 'PyPI' }, ranges: [] }],
+      };
+      const findings = mapOsvFindingsToRuleFindings(
+            [pypiPkg('requests', '2.28.0')],
+            new Map([['PyPI:requests@2.28.0', ['GHSA-requests-pypi']]]),
+            new Map([['GHSA-requests-pypi', requestsVuln]]),
+      );
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0].file).toBe('poetry.lock');
+      expect(findings[0].dependency?.package.ecosystem).toBe('PyPI');
+});
+
+it('does not let a PyPI OSV match dedupe an npm-audit finding of the same package name', () => {
+      const report: NpmAuditReport = {
+            vulnerabilities: {
+                  requests: {
+                        name: 'requests',
+                        severity: 'high',
+                        range: '*',
+                        fixAvailable: false,
+                        via: [{ title: 'npm advisory GHSA-shared-id', url: 'https://example.com/GHSA-shared-id' }],
+                  },
+            },
+      };
+      // Same canonical id, but indexed under the PyPI package of the same name — must not cross-dedupe.
+      const osvIdsByPackage = new Map([['PyPI:requests', new Set(['GHSA-SHARED-ID'])]]);
+
+      const findings = mapAuditReportToFindings(report, osvIdsByPackage);
+
+      expect(findings).toHaveLength(1);
+});
+
 it('auditPackagesWithOsv queries OSV for the locked packages and merges details into findings', async () => {
-      const lockedPackages: LockedPackage[] = [{ name: 'lodash', version: '4.17.15' }];
+      const lockedPackages: LockedPackage[] = [npmPkg('lodash', '4.17.15')];
       const fetchImpl = async (url: string) => {
             if (url.includes('querybatch')) {
                   return { ok: true, json: async () => ({ results: [{ vulns: [{ id: 'GHSA-29mw-wpgm-hmr9' }] }] }) };
@@ -273,21 +324,14 @@ it('auditPackagesWithOsv surfaces a warning instead of throwing when OSV is unre
             throw new Error('network down');
       };
 
-      const { findings, warning } = await auditPackagesWithOsv(
-            [{ name: 'lodash', version: '4.17.15' }],
-            new Set(),
-            fetchImpl,
-      );
+      const { findings, warning } = await auditPackagesWithOsv([npmPkg('lodash', '4.17.15')], new Set(), fetchImpl);
 
       expect(findings).toHaveLength(0);
       expect(warning).toContain('OSV.dev');
 });
 
 it('auditPackagesWithOsv reports every successfully queried package as checked', async () => {
-      const lockedPackages: LockedPackage[] = [
-            { name: 'lodash', version: '4.17.15' },
-            { name: 'chalk', version: '6.0.0' },
-      ];
+      const lockedPackages: LockedPackage[] = [npmPkg('lodash', '4.17.15'), npmPkg('chalk', '6.0.0')];
       const fetchImpl = async (url: string) => {
             if (url.includes('querybatch')) {
                   return {
@@ -306,11 +350,7 @@ it('auditPackagesWithOsv reports every successfully queried package as checked',
 it('auditPackagesWithOsv reports no checked packages when the OSV batch query fails entirely', async () => {
       const fetchImpl = async () => ({ ok: false, status: 503, json: async () => ({}) });
 
-      const { checkedPackages } = await auditPackagesWithOsv(
-            [{ name: 'lodash', version: '4.17.15' }],
-            new Set(),
-            fetchImpl,
-      );
+      const { checkedPackages } = await auditPackagesWithOsv([npmPkg('lodash', '4.17.15')], new Set(), fetchImpl);
 
       expect(checkedPackages).toEqual([]);
 });

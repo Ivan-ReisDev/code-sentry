@@ -25,7 +25,8 @@ const SEVERITY_EMOJI = new Map<Severity, string>([
 ]);
 
 const severityLabel = (severity: Severity): string => SEVERITY_LABEL.get(severity) ?? severity;
-const severityBadge = (severity: Severity): string => `${SEVERITY_EMOJI.get(severity) ?? ''} ${severityLabel(severity)}`;
+const severityBadge = (severity: Severity): string =>
+      `${SEVERITY_EMOJI.get(severity) ?? ''} ${severityLabel(severity)}`;
 
 const escapeCell = (text: string): string => text.replaceAll('|', '\\|');
 
@@ -238,6 +239,12 @@ const nvdMarkdown = (result: NvdLookupResult, advisorySummary?: string): string[
 const mdSourcesLabel = (source: 'osv' | 'npm', foundNvd: boolean): string =>
       source === 'osv' ? `OSV${foundNvd ? ', NVD' : ''}` : 'npm';
 
+const ecosystemSuffix = (ecosystem: string | undefined): string =>
+      ecosystem && ecosystem !== 'npm' ? ` (${ecosystem})` : '';
+
+const packageLabel = (dependency: NonNullable<RuleFinding['dependency']>): string =>
+      `${dependency.package.name}@${dependency.package.installedVersion}${ecosystemSuffix(dependency.package.ecosystem)}`;
+
 const mdSummaryLine = (summary: string | undefined): string[] =>
       summary ? [`- **Descrição OSV/npm:** ${summary}`] : [];
 
@@ -252,11 +259,13 @@ const firstCvssScore = (nvd: NvdLookupResult[] | undefined): string => {
 };
 
 const dependencySummaryRow = (finding: RuleFinding, dependency: DependencyDetails): string =>
-      `| ${dependency.package.name}@${dependency.package.installedVersion} | ${severityBadge(finding.severity)} | ${dependency.advisory.id ?? '—'} | ${dependency.advisory.aliases.join(', ') || '—'} | ${firstCvssScore(dependency.nvd)} | ${dependency.package.fixedVersions.join(' ou ') || '—'} |`;
+      `| ${packageLabel(dependency)} | ${severityBadge(finding.severity)} | ${dependency.advisory.id ?? '—'} | ${dependency.advisory.aliases.join(', ') || '—'} | ${firstCvssScore(dependency.nvd)} | ${dependency.package.fixedVersions.join(' ou ') || '—'} |`;
 
 const dependencySummaryTable = (findings: RuleFinding[]): string[] => {
       const rows = findings
-            .filter((finding): finding is RuleFinding & { dependency: DependencyDetails } => Boolean(finding.dependency))
+            .filter((finding): finding is RuleFinding & { dependency: DependencyDetails } =>
+                  Boolean(finding.dependency),
+            )
             .map((finding) => dependencySummaryRow(finding, finding.dependency));
       if (!rows.length) return [];
       return [
@@ -273,7 +282,7 @@ const dependencySection = (finding: RuleFinding): string[] => {
       const foundNvd = (dependency.nvd ?? []).some((result) => result.status === 'found');
       return [
             '<details>',
-            `<summary>${severityBadge(finding.severity)} <strong>${dependency.package.name}@${dependency.package.installedVersion}</strong></summary>`,
+            `<summary>${severityBadge(finding.severity)} <strong>${packageLabel(dependency)}</strong></summary>`,
             '',
             `- **Fonte principal:** ${dependency.advisory.source.toUpperCase()}`,
             `- **Advisory:** ${dependency.advisory.id ?? 'não informado'}`,

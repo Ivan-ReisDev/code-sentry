@@ -3,6 +3,7 @@ import {
       extractFixedVersions,
       fetchOsvVulnerabilityDetails,
       mapOsvSeverity,
+      osvPackageKey,
       queryOsvBatch,
       type OsvVulnerability,
 } from '../../src/scanner/osv-client.js';
@@ -29,17 +30,34 @@ const lodashRedosVuln: OsvVulnerability = {
       ],
 };
 
-it('sends one querybatch request with the npm ecosystem for the given packages', async () => {
+// Same name+version, two different ecosystems — used to assert nothing collides between them.
+const crossEcosystemVuln: OsvVulnerability = {
+      id: 'GHSA-cross-ecosystem',
+      summary: 'Same package name published on two ecosystems',
+      affected: [
+            {
+                  package: { name: 'requests', ecosystem: 'npm' },
+                  ranges: [{ type: 'SEMVER', events: [{ introduced: '0.0.0' }, { fixed: '1.0.0' }] }],
+            },
+            {
+                  package: { name: 'requests', ecosystem: 'PyPI' },
+                  ranges: [{ type: 'ECOSYSTEM', events: [{ introduced: '0' }, { fixed: '2.28.1' }] }],
+            },
+      ],
+};
+
+it('sends one querybatch request with each package tagged by its own ecosystem', async () => {
       const requests: unknown[] = [];
       const fetchImpl = async (_url: string, init?: RequestInit) => {
             requests.push(JSON.parse(init?.body as string));
-            return { ok: true, json: async () => ({ results: [{}, {}] }) };
+            return { ok: true, json: async () => ({ results: [{}, {}, {}] }) };
       };
 
       await queryOsvBatch(
             [
-                  { name: 'lodash', version: '4.17.15' },
-                  { name: 'chalk', version: '6.0.0' },
+                  { name: 'lodash', version: '4.17.15', ecosystem: 'npm' },
+                  { name: 'chalk', version: '6.0.0', ecosystem: 'npm' },
+                  { name: 'requests', version: '2.28.0', ecosystem: 'PyPI' },
             ],
             fetchImpl,
       );
@@ -49,6 +67,7 @@ it('sends one querybatch request with the npm ecosystem for the given packages',
                   queries: [
                         { package: { name: 'lodash', ecosystem: 'npm' }, version: '4.17.15' },
                         { package: { name: 'chalk', ecosystem: 'npm' }, version: '6.0.0' },
+                        { package: { name: 'requests', ecosystem: 'PyPI' }, version: '2.28.0' },
                   ],
             },
       ]);
@@ -61,14 +80,18 @@ it('chunks large package lists instead of sending one oversized request', async 
             requestSizes.push(body.queries.length);
             return { ok: true, json: async () => ({ results: body.queries.map(() => ({})) }) };
       };
-      const packages = Array.from({ length: 150 }, (_, i) => ({ name: `pkg-${i}`, version: '1.0.0' }));
+      const packages = Array.from({ length: 150 }, (_, i) => ({
+            name: `pkg-${i}`,
+            version: '1.0.0',
+            ecosystem: 'npm',
+      }));
 
       await queryOsvBatch(packages, fetchImpl);
 
       expect(requestSizes).toEqual([100, 50]);
 });
 
-it('returns vuln ids matched positionally back to their package', async () => {
+it('returns vuln ids matched positionally back to their package, keyed by ecosystem', async () => {
       const fetchImpl = async () => ({
             ok: true,
             json: async () => ({
@@ -78,20 +101,49 @@ it('returns vuln ids matched positionally back to their package', async () => {
 
       const { vulnIdsByPackage } = await queryOsvBatch(
             [
-                  { name: 'lodash', version: '4.17.15' },
-                  { name: 'chalk', version: '6.0.0' },
+                  { name: 'lodash', version: '4.17.15', ecosystem: 'npm' },
+                  { name: 'chalk', version: '6.0.0', ecosystem: 'npm' },
             ],
             fetchImpl,
       );
 
-      expect(vulnIdsByPackage.get('lodash@4.17.15')).toEqual(['GHSA-aaaa-bbbb-cccc']);
-      expect(vulnIdsByPackage.has('chalk@6.0.0')).toBe(false);
+      expect(vulnIdsByPackage.get('npm:lodash@4.17.15')).toEqual(['GHSA-aaaa-bbbb-cccc']);
+      expect(vulnIdsByPackage.has('npm:chalk@6.0.0')).toBe(false);
+});
+
+it('does not let same-name-different-ecosystem packages collide in vulnIdsByPackage', async () => {
+      const fetchImpl = async (_url: string, init?: RequestInit) => {
+            const body = JSON.parse(init?.body as string) as { queries: { package: { ecosystem: string } }[] };
+            return {
+                  ok: true,
+                  json: async () => ({
+                        results: body.queries.map((q) => ({
+                              vulns: [{ id: q.package.ecosystem === 'npm' ? 'NPM-VULN' : 'PYPI-VULN' }],
+                        })),
+                  }),
+            };
+      };
+
+      const { vulnIdsByPackage } = await queryOsvBatch(
+            [
+                  { name: 'requests', version: '2.28.0', ecosystem: 'npm' },
+                  { name: 'requests', version: '2.28.0', ecosystem: 'PyPI' },
+            ],
+            fetchImpl,
+      );
+
+      expect(vulnIdsByPackage.get('npm:requests@2.28.0')).toEqual(['NPM-VULN']);
+      expect(vulnIdsByPackage.get('PyPI:requests@2.28.0')).toEqual(['PYPI-VULN']);
+});
+
+it('osvPackageKey combines ecosystem, name and version', () => {
+      expect(osvPackageKey({ name: 'chalk', version: '6.0.0', ecosystem: 'npm' })).toBe('npm:chalk@6.0.0');
 });
 
 it('returns a warning instead of throwing when the querybatch endpoint responds non-2xx', async () => {
       const fetchImpl = async () => ({ ok: false, status: 503, json: async () => ({}) });
 
-      const result = await queryOsvBatch([{ name: 'lodash', version: '4.17.15' }], fetchImpl);
+      const result = await queryOsvBatch([{ name: 'lodash', version: '4.17.15', ecosystem: 'npm' }], fetchImpl);
 
       expect(result.vulnIdsByPackage.size).toBe(0);
       expect(result.warning).toContain('OSV.dev');
@@ -102,7 +154,7 @@ it('returns a warning instead of throwing when fetch itself rejects (network fai
             throw new Error('network down');
       };
 
-      const result = await queryOsvBatch([{ name: 'lodash', version: '4.17.15' }], fetchImpl);
+      const result = await queryOsvBatch([{ name: 'lodash', version: '4.17.15', ecosystem: 'npm' }], fetchImpl);
 
       expect(result.vulnIdsByPackage.size).toBe(0);
       expect(result.warning).toContain('OSV.dev');
@@ -116,22 +168,25 @@ it('lists every package from a successful chunk as checked, vulnerable or not', 
 
       const { checkedPackages } = await queryOsvBatch(
             [
-                  { name: 'lodash', version: '4.17.15' },
-                  { name: 'chalk', version: '6.0.0' },
+                  { name: 'lodash', version: '4.17.15', ecosystem: 'npm' },
+                  { name: 'chalk', version: '6.0.0', ecosystem: 'npm' },
             ],
             fetchImpl,
       );
 
       expect(checkedPackages).toEqual([
-            { name: 'lodash', version: '4.17.15' },
-            { name: 'chalk', version: '6.0.0' },
+            { name: 'lodash', version: '4.17.15', ecosystem: 'npm' },
+            { name: 'chalk', version: '6.0.0', ecosystem: 'npm' },
       ]);
 });
 
 it('does not list packages from a failed chunk as checked', async () => {
       const fetchImpl = async () => ({ ok: false, status: 503, json: async () => ({}) });
 
-      const { checkedPackages } = await queryOsvBatch([{ name: 'lodash', version: '4.17.15' }], fetchImpl);
+      const { checkedPackages } = await queryOsvBatch(
+            [{ name: 'lodash', version: '4.17.15', ecosystem: 'npm' }],
+            fetchImpl,
+      );
 
       expect(checkedPackages).toEqual([]);
 });
@@ -141,7 +196,11 @@ it('accumulates checked packages across multiple chunks', async () => {
             const body = JSON.parse(init?.body as string) as { queries: unknown[] };
             return { ok: true, json: async () => ({ results: body.queries.map(() => ({})) }) };
       };
-      const packages = Array.from({ length: 150 }, (_, i) => ({ name: `pkg-${i}`, version: '1.0.0' }));
+      const packages = Array.from({ length: 150 }, (_, i) => ({
+            name: `pkg-${i}`,
+            version: '1.0.0',
+            ecosystem: 'npm',
+      }));
 
       const { checkedPackages } = await queryOsvBatch(packages, fetchImpl);
 
@@ -192,15 +251,20 @@ it('returns a warning instead of throwing when a detail fetch fails, without dro
 });
 
 it('extractFixedVersions collects the fixed version for the matching npm package', () => {
-      expect(extractFixedVersions(lodashRedosVuln, 'lodash')).toEqual(['4.17.21']);
+      expect(extractFixedVersions(lodashRedosVuln, 'lodash', 'npm')).toEqual(['4.17.21']);
 });
 
 it('extractFixedVersions returns an empty array when OSV has not published a fix for that package', () => {
-      expect(extractFixedVersions(lodashRedosVuln, 'lodash.trimend')).toEqual([]);
+      expect(extractFixedVersions(lodashRedosVuln, 'lodash.trimend', 'npm')).toEqual([]);
 });
 
 it('extractFixedVersions ignores ranges for other ecosystems even with a matching name coincidence', () => {
-      expect(extractFixedVersions(lodashRedosVuln, 'lodash-rails')).toEqual([]);
+      expect(extractFixedVersions(lodashRedosVuln, 'lodash-rails', 'npm')).toEqual([]);
+});
+
+it('extractFixedVersions keeps npm and PyPI fixed versions separate for the same package name', () => {
+      expect(extractFixedVersions(crossEcosystemVuln, 'requests', 'npm')).toEqual(['1.0.0']);
+      expect(extractFixedVersions(crossEcosystemVuln, 'requests', 'PyPI')).toEqual(['2.28.1']);
 });
 
 it('mapOsvSeverity maps GHSA-style database_specific.severity values', () => {

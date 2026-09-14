@@ -189,6 +189,54 @@ it('prints structured OSV and NVD dependency details without dropping the OSV fi
       expect(output).toContain('NVD: 1 CVE(s)');
 });
 
+it('shows the ecosystem next to the package name only when it is not npm', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const baseFinding = {
+            ruleId: 'dependency-audit',
+            message: 'summary',
+            file: 'poetry.lock',
+            line: 1,
+            severity: 'medium' as const,
+      };
+      const result: ScanResult = {
+            scannedFiles: 1,
+            durationMs: 1,
+            findings: [
+                  {
+                        ...baseFinding,
+                        dependency: {
+                              package: {
+                                    name: 'requests',
+                                    installedVersion: '2.28.0',
+                                    fixedVersions: [],
+                                    ecosystem: 'PyPI',
+                              },
+                              advisory: { source: 'osv', id: 'GHSA-x', aliases: [] },
+                        },
+                  },
+                  {
+                        ...baseFinding,
+                        dependency: {
+                              package: {
+                                    name: 'chalk',
+                                    installedVersion: '5.3.0',
+                                    fixedVersions: [],
+                                    ecosystem: 'npm',
+                              },
+                              advisory: { source: 'osv', id: 'GHSA-y', aliases: [] },
+                        },
+                  },
+            ],
+      };
+
+      printConsoleReport(result);
+      const output = logSpy.mock.calls.flat().join('\n');
+
+      expect(output).toContain('Pacote: requests (PyPI)');
+      expect(output).toContain('Pacote: chalk');
+      expect(output).not.toContain('Pacote: chalk (npm)');
+});
+
 it('distinguishes NVD not-found from an NVD consultation error', () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const dependency = {
