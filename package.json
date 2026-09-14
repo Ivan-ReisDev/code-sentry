@@ -1,6 +1,6 @@
 {
   "name": "codesentry",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "workspaces": [
     "packages/semgrep-rules"
@@ -49,7 +49,7 @@
     "@clack/prompts": "^1.7.0",
     "chalk": "^6.0.0",
     "cli-table3": "^0.6.5",
-    "codesentry-semgrep-rules": "0.3.0",
+    "codesentry-semgrep-rules": "0.4.0",
     "commander": "^15.0.0",
     "eslint": "^10.10.0",
     "eslint-plugin-no-unsanitized": "^4.1.5",
@@ -62,8 +62,8 @@
     "yaml": "^2.9.1"
   },
   "optionalDependencies": {
-    "codesentry-semgrep-linux-x64": "0.3.0",
-    "codesentry-semgrep-win32-x64": "0.3.0"
+    "codesentry-semgrep-linux-x64": "0.4.0",
+    "codesentry-semgrep-win32-x64": "0.4.0"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
