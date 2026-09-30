@@ -18,20 +18,12 @@ it('fails clearly when the compatible runtime package was not installed', () => 
       ).toThrow('Não foi possível carregar o runtime Semgrep embutido');
 });
 
-it('resolves the bundled semgrep executable path from the platform package manifest', () => {
-      const runtime = resolveBundledSemgrepRuntime('linux', 'x64', () => fixtureManifest);
-
-      expect(runtime.semgrep).toBe(resolve(import.meta.dirname, '../fixtures/semgrep-runtime/bin/semgrep'));
-});
-
-it('resolves the bundled semgrep executable for macOS arm64 (Apple Silicon)', () => {
-      const runtime = resolveBundledSemgrepRuntime('darwin', 'arm64', () => fixtureManifest);
-
-      expect(runtime.semgrep).toBe(resolve(import.meta.dirname, '../fixtures/semgrep-runtime/bin/semgrep'));
-});
-
-it('resolves the bundled semgrep executable for macOS x64 (Intel)', () => {
-      const runtime = resolveBundledSemgrepRuntime('darwin', 'x64', () => fixtureManifest);
+it.each([
+      ['linux', 'x64'],
+      ['darwin', 'arm64'],
+      ['darwin', 'x64'],
+] as const)('resolves the bundled semgrep executable from the package manifest on %s-%s', (platform, architecture) => {
+      const runtime = resolveBundledSemgrepRuntime(platform, architecture, () => fixtureManifest);
 
       expect(runtime.semgrep).toBe(resolve(import.meta.dirname, '../fixtures/semgrep-runtime/bin/semgrep'));
 });
