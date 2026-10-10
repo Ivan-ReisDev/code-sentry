@@ -59,8 +59,8 @@ Semgrep, nem criar conta em lugar nenhum.
 
 Isso é possível porque o Semgrep CE e um Python portátil vêm empacotados
 como **dependências opcionais** específicas da plataforma
-(`codesentry-semgrep-linux-x64` / `-win32-x64`), resolvidas
-automaticamente pelo npm na instalação. O ruleset OWASP também é
+(`codesentry-semgrep-linux-x64` / `-win32-x64` / `-darwin-arm64` /
+`-darwin-x64`), resolvidas automaticamente pelo npm na instalação. O ruleset OWASP também é
 distribuído como pacote próprio (`codesentry-semgrep-rules`), como um
 snapshot local fixado por versão — o scan nunca consulta a Semgrep
 Registry nem envia métricas, e funciona 100% offline depois de instalado.
@@ -88,13 +88,22 @@ npm install -g codesentry
 codesentry scan .
 ```
 
-Em ambos os casos, o `npm install` já resolve automaticamente o pacote de
+### macOS
+
+Tanto em Apple Silicon (M1 ou mais recente) quanto em Intel:
+
+```bash
+npm install -g codesentry
+codesentry scan .
+```
+
+Em todos os casos, o `npm install` já resolve automaticamente o pacote de
 runtime compatível com a sua plataforma (Semgrep CE + Python portátil) como
 dependência opcional — é isso que faz `codesentry scan` funcionar com
 cobertura OWASP completa sem nenhuma instalação manual. Plataformas com
-runtime publicado hoje: Linux x64 e Windows x64. Os pacotes têm dezenas de
-MB porque incluem esse runtime embutido; essa é a troca para o scan
-funcionar 100% offline depois de instalado.
+runtime publicado hoje: Linux x64, Windows x64 e macOS (Apple Silicon e
+Intel). Os pacotes têm dezenas de MB porque incluem esse runtime embutido;
+essa é a troca para o scan funcionar 100% offline depois de instalado.
 
 Se `codesentry` não for encontrado no terminal depois de instalado
 globalmente, feche e reabra o terminal (ou rode `npx codesentry scan .`) —
@@ -184,8 +193,9 @@ Por padrão, arquivos de teste não são analisados: nenhum diretório chamado
 com sufixo `.spec.*`/`.test.*` (em qualquer lugar, mesmo fora dessas pastas)
 entra no scan. Use `--tests` para incluí-los.
 
-Em macOS, ARM e plataformas sem runtime publicado, o comando interrompe
-explicitamente em vez de declarar uma análise parcial como completa.
+Em plataformas sem runtime publicado (por exemplo Linux ARM ou Windows ARM),
+o comando interrompe explicitamente em vez de declarar uma análise parcial
+como completa.
 
 ### `codesentry rules`
 

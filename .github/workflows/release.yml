@@ -71,6 +71,12 @@ jobs:
                               - os: windows-latest
                                 package: packages/semgrep-win32-x64
                                 semgrep_binary: semgrep.exe
+                              - os: macos-14
+                                package: packages/semgrep-darwin-arm64
+                                semgrep_binary: semgrep
+                              - os: macos-13
+                                package: packages/semgrep-darwin-x64
+                                semgrep_binary: semgrep
             runs-on: ${{ matrix.os }}
             steps:
                   - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -159,7 +165,18 @@ jobs:
                     run: |
                           npm install --no-save "./${{ matrix.package }}"
                           npm run build
-                          node dist/index.js scan tests/fixtures/semgrep-multilang --json
+                          # O Semgrep ignora por padrão qualquer caminho sob tests/, então o
+                          # fixture é copiado para fora de tests/ para que o runtime embutido
+                          # seja de fato exercitado, e não apenas o motor nativo.
+                          rm -rf smoke-target && mkdir smoke-target
+                          cp tests/fixtures/semgrep-multilang/unsafe.js tests/fixtures/semgrep-multilang/unsafe.py smoke-target/
+                          SMOKE_OUTPUT="$(node dist/index.js scan smoke-target --json)"
+                          echo "$SMOKE_OUTPUT"
+                          if ! printf '%s' "$SMOKE_OUTPUT" | grep -q 'semgrep/'; then
+                                echo "Smoke test falhou: o Semgrep embutido não contribuiu nenhum finding; o runtime de ${{ matrix.package }} pode estar quebrado." >&2
+                                exit 1
+                          fi
+                          rm -rf smoke-target
                   - name: Check if this version is already published
                     id: check
                     shell: bash

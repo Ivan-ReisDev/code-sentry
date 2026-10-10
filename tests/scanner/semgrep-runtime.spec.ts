@@ -6,8 +6,8 @@ const fixtureManifest = resolve(import.meta.dirname, '../fixtures/semgrep-runtim
 const missingBinaryManifest = resolve(import.meta.dirname, '../fixtures/semgrep-runtime-missing-binary/runtime.json');
 
 it('explains when the bundled Semgrep runtime is unavailable for a platform', () => {
-      expect(unsupportedRuntimeMessage('darwin', 'arm64')).toContain('darwin-arm64');
-      expect(unsupportedRuntimeMessage('darwin', 'arm64')).toContain('Linux x64 e Windows x64');
+      expect(unsupportedRuntimeMessage('linux', 'arm64')).toContain('linux-arm64');
+      expect(unsupportedRuntimeMessage('linux', 'arm64')).toContain('macOS');
 });
 
 it('fails clearly when the compatible runtime package was not installed', () => {
@@ -18,8 +18,12 @@ it('fails clearly when the compatible runtime package was not installed', () => 
       ).toThrow('Não foi possível carregar o runtime Semgrep embutido');
 });
 
-it('resolves the bundled semgrep executable path from the platform package manifest', () => {
-      const runtime = resolveBundledSemgrepRuntime('linux', 'x64', () => fixtureManifest);
+it.each([
+      ['linux', 'x64'],
+      ['darwin', 'arm64'],
+      ['darwin', 'x64'],
+] as const)('resolves the bundled semgrep executable from the package manifest on %s-%s', (platform, architecture) => {
+      const runtime = resolveBundledSemgrepRuntime(platform, architecture, () => fixtureManifest);
 
       expect(runtime.semgrep).toBe(resolve(import.meta.dirname, '../fixtures/semgrep-runtime/bin/semgrep'));
 });
